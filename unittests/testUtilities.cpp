@@ -1,8 +1,8 @@
 /*
- * Copyright (c) 2011, Georgia Tech Research Corporation
+ * Copyright (c) 2011-2013, Georgia Tech Research Corporation
  * All rights reserved.
  *
- * Geoorgia Tech Graphics Lab and Humanoid Robotics Lab
+ * Georgia Tech Graphics Lab and Humanoid Robotics Lab
  *
  * Directed by Prof. C. Karen Liu and Prof. Mike Stilman
  * <karenliu@cc.gatech.edu> <mstilman@cc.gatech.edu>
@@ -32,66 +32,9 @@
  *   POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "math/UtilsRotation.h"
-#include "math/UtilsMath.h"
 #include <iostream>
 #include <gtest/gtest.h>
 #include <Eigen/Dense>
-
-using namespace std;
-using namespace Eigen;
-
-/* ********************************************************************************************* */
-TEST(UTILS, ROTATION) {
-  using namespace dart_math;
-  
-  // Create Initial ExpMap
-  Vector3d axis(2.0, 1.0, 1.0);
-  axis.normalize();
-  double angle = 1.2;
-  EXPECT_DOUBLE_EQ(axis.norm(), 1.0);
-  Vector3d expmap = axis * angle;
-
-
-  // Test conversion between expmap and quaternion
-  Quaterniond q = expToQuat(expmap);
-  Vector3d expmap2 = quatToExp(q);
-
-  EXPECT_NEAR((expmap - expmap2).norm(), 0.0, M_EPSILON)
-    << "Orig: " << expmap << " Reconstructed: " << expmap2;
-  
-  // Test conversion between matrix and euler
-  Matrix3d m = quatToMatrix(q);
-  Vector3d e = matrixToEuler(m, XYZ);
-  Matrix3d m2 = eulerToMatrix(e, XYZ);
-
-  EXPECT_NEAR((m - m2).norm(), 0.0, M_EPSILON)
-    << "Orig: " << m << " Reconstructed: " << m2;
-}
-
-/* ********************************************************************************************* */
-TEST(UTILS, UTILS) {
-  // Test CR Matrix
-  EXPECT_DOUBLE_EQ(dart_math::CR(0, 1), -1.0);
-
-  // Test randomize function
-  double x = dart_math::random(0.0, 2.0);
-  EXPECT_LT(0.0, x);
-  EXPECT_LT(x, 2.0);
-
-  // Test transform
-  Matrix4d M;
-  M << 1.0, 0.0, 0.0, 3.0,
-    0.0, 1.0, 0.0, 2.0,
-    0.0, 0.0, 1.0, 1.0,
-    0.0, 0.0, 0.0, 1.0;
-  Vector3d pt(1.0, 0.5, 1.0);
-  Vector3d result = dart_math::xformHom(M, pt);
-  Vector3d expected(4.0, 2.5, 2.0);
-  EXPECT_NEAR( (result - expected).norm(), 0.0, M_EPSILON)
-    << "result = " << result << " expected = " << expected;
-  
-}
 
 /* ********************************************************************************************* */
 int main(int argc, char* argv[]) {

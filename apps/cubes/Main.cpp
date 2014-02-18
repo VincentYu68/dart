@@ -1,63 +1,71 @@
-#include "MyWindow.h"
-#include "kinematics/FileInfoSkel.hpp"
-#include "utils/Paths.h"
+/*
+ * Copyright (c) 2011-2013, Georgia Tech Research Corporation
+ * All rights reserved.
+ *
+ * Author(s): Karen Liu <karenliu@cc.gatech.edu>,
+ *            Jeongseok Lee <jslee02@gmail.com>
+ *
+ * Georgia Tech Graphics Lab and Humanoid Robotics Lab
+ *
+ * Directed by Prof. C. Karen Liu and Prof. Mike Stilman
+ * <karenliu@cc.gatech.edu> <mstilman@cc.gatech.edu>
+ *
+ * This file is provided under the following "BSD-style" License:
+ *   Redistribution and use in source and binary forms, with or
+ *   without modification, are permitted provided that the following
+ *   conditions are met:
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ *   CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ *   INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *   MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ *   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ *   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ *   USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ *   AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *   POSSIBILITY OF SUCH DAMAGE.
+ */
 
-using namespace kinematics;
-using namespace dynamics;
-using namespace simulation;
-using namespace std;
-using namespace Eigen;
+#include <iostream>
 
-int main(int argc, char* argv[])
-{
-    // load a skeleton file
-    FileInfoSkel<SkeletonDynamics> model, model2, model3, model4;
-    model.loadFile(DART_DATA_PATH"/skel/ground1.skel", SKEL);
-    model2.loadFile(DART_DATA_PATH"/skel/cube2.skel", SKEL);
-    model3.loadFile(DART_DATA_PATH"/skel/cube1.skel", SKEL);
-    model4.loadFile(DART_DATA_PATH"/skel/cube1.skel", SKEL);
-    
-    // create and initialize the world
-    World *myWorld = new World();
-    Vector3d gravity(0.0, -9.81, 0.0);
-    myWorld->setGravity(gravity);
+#include "dart/simulation/World.h"
+#include "dart/utils/Paths.h"
+#include "dart/utils/SkelParser.h"
+#include "apps/cubes/MyWindow.h"
 
-    ((SkeletonDynamics*)model.getSkel())->setImmobileState(true);
-    myWorld->addSkeleton((SkeletonDynamics*)model.getSkel());
-    myWorld->addSkeleton((SkeletonDynamics*)model2.getSkel());
-    myWorld->addSkeleton((SkeletonDynamics*)model3.getSkel());
-    myWorld->addSkeleton((SkeletonDynamics*)model4.getSkel());
+int main(int argc, char* argv[]) {
+  // create and initialize the world
+  dart::simulation::World *myWorld
+      = dart::utils::SkelParser::readSkelFile(
+          DART_DATA_PATH"/skel/cubes.skel");
+  assert(myWorld != NULL);
+  Eigen::Vector3d gravity(0.0, -9.81, 0.0);
+  myWorld->setGravity(gravity);
 
-    VectorXd initPose = myWorld->getSkeleton(0)->getPose();
-    initPose[1] = -0.35;
-    myWorld->getSkeleton(0)->setPose(initPose);
+  // create a window and link it to the world
+  MyWindow window;
+  window.setWorld(myWorld);
 
-    initPose = myWorld->getSkeleton(1)->getPose();
-    initPose[1] = -0.35 + 0.025;
-    myWorld->getSkeleton(1)->setPose(initPose);
+  std::cout << "space bar: simulation on/off" << std::endl;
+  std::cout << "'p': playback/stop" << std::endl;
+  std::cout << "'[' and ']': play one frame backward and forward" << std::endl;
+  std::cout << "'v': visualization on/off" << std::endl;
+  std::cout << "'1'--'4': programmed interaction" << std::endl;
+  std::cout << "'q': spawn a random cube" << std::endl;
+  std::cout << "'w': delete a spawned cube" << std::endl;
 
-    initPose = myWorld->getSkeleton(2)->getPose();
-    initPose[1] = -0.35 + 0.025 + 0.05;
-    myWorld->getSkeleton(2)->setPose(initPose);
+  glutInit(&argc, argv);
+  window.initWindow(640, 480, "Boxes");
+  glutMainLoop();
 
-    initPose = myWorld->getSkeleton(3)->getPose();
-    initPose[0] = 0.05;
-    initPose[1] = -0.35 + 0.025 + 0.05 + 0.08;
-    myWorld->getSkeleton(3)->setPose(initPose);
-
-    // create a window and link it to the world
-    MyWindow window;
-    window.setWorld(myWorld);
-  
-    cout << "space bar: simulation on/off" << endl;
-    cout << "'p': playback/stop" << endl;
-    cout << "'[' and ']': play one frame backward and forward" << endl;
-    cout << "'v': visualization on/off" << endl;
-    cout << "'1'--'4': programmed interaction" << endl;
-
-    glutInit(&argc, argv);
-    window.initWindow(640, 480, "Boxes");
-    glutMainLoop();
-
-    return 0;
+  return 0;
 }

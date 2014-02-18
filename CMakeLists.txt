@@ -6,9 +6,9 @@ set(CMAKE_CXX_WARNING_LEVEL 4)
 project(dart)
 message(STATUS "Generate makefile/project file for DART")
 
-set(DART_MAJOR_VERSION "2")
-set(DART_MINOR_VERSION "5")
-set(DART_PATCH_VERSION "0precise")
+set(DART_MAJOR_VERSION "3")
+set(DART_MINOR_VERSION "0")
+set(DART_PATCH_VERSION "0")
 set(PKG_DESC "Dynamic Animation and Robotics Toolkit.")
 set(DART_VERSION "${DART_MAJOR_VERSION}.${DART_MINOR_VERSION}.${DART_PATCH_VERSION}")
 set(PKG_EXTERNAL_DEPS "flann, ccd, fcl")
@@ -17,7 +17,10 @@ message(STATUS "CMAKE_SOURCE_DIR = ${CMAKE_SOURCE_DIR}")
 message(STATUS "CMAKE_BINARY_DIR = ${CMAKE_BINARY_DIR}")
 
 option(BUILD_SNOPT "Build with SNOPT optimizer" OFF)
-option(BUILD_ROBOTICS "Compile with Robotics API" ON)
+option(BUILD_CORE_ONLY "Build only the core of DART" OFF)
+if(NOT MSVC)
+    OPTION(BUILD_SHARED_LIBS "Build shared libraries" ON)
+endif()
 
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release CACHE STRING
@@ -58,20 +61,89 @@ endif()
 
 ###############
 # Generate the path header file
-set(PATH_HEADER_IN ${CMAKE_SOURCE_DIR}/src/utils/Paths.h.in)
-set(PATH_HEADER_OUT ${CMAKE_BINARY_DIR}/src/utils/Paths.h)
+set(PATH_HEADER_IN ${CMAKE_SOURCE_DIR}/dart/utils/Paths.h.in)
+set(PATH_HEADER_OUT ${CMAKE_BINARY_DIR}/dart/utils/Paths.h)
 message(STATUS "Generate the path header file to ${PATH_HEADER_OUT}")
 configure_file(${PATH_HEADER_IN} ${PATH_HEADER_OUT} @ONLY)
 install(FILES ${PATH_HEADER_OUT} DESTINATION include/dart/utils)
 
 ###############
-# Install Targets
+# Find dependencies
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
+find_package(Eigen REQUIRED)
+find_package(FCL REQUIRED)
+find_package(Assimp REQUIRED)
+find_package(OpenGL REQUIRED)
+
+# GLUT
+if(WIN32 AND NOT CYGWIN)
+    set(GLUT_INCLUDE_DIR "@CMAKE_INSTALL_PREFIX@/include")
+    set(GLUT_LIBRARIES glut32)
+else()
+    find_package(GLUT REQUIRED)
+    set(GLUT_LIBRARIES ${GLUT_glut_LIBRARY})
+endif()
+
+# Boost
+find_package(Boost REQUIRED system)
+if(MSVC OR MSVC90 OR MSVC10)
+    add_definitions(-DBOOST_ALL_NO_LIB)
+endif()
+add_definitions(-DBOOST_TEST_DYN_LINK)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+
+if(NOT BUILD_CORE_ONLY)
+  find_package(FLANN REQUIRED)
+  find_package(TinyXML REQUIRED)
+  find_package(TinyXML2 REQUIRED)
+  
+  # urdfdom
+  find_package(urdfdom REQUIRED)
+  if(MSVC)
+      set(urdfdom_LIBRARIES optimized urdfdom_sensor      debug urdfdom_sensord
+                            optimized urdfdom_model_state debug urdfdom_model_stated
+                            optimized urdfdom_model       debug urdfdom_modeld
+                            optimized urdfdom_world       debug urdfdom_worldd
+                            optimized console_bridge      debug console_bridged)
+  endif()
+endif()
+
+include_directories(BEFORE ${PROJECT_SOURCE_DIR})
+include_directories(${Eigen_INCLUDE_DIRS})
+include_directories(${FCL_INCLUDE_DIRS})
+include_directories(${Assimp_INCLUDE_DIRS})
+include_directories(${Boost_INCLUDE_DIRS})
+include_directories(${OPENGL_INCLUDE_DIR})
+include_directories(${GLUT_INCLUDE_DIR})
+
+if(NOT BUILD_CORE_ONLY)
+  include_directories(${FLANN_INCLUDE_DIRS})
+  include_directories(${urdfdom_INCLUDE_DIRS})
+  include_directories(${TinyXML_INCLUDE_DIRS})
+  include_directories(${TinyXML2_INCLUDE_DIRS})
+endif()
+
+include_directories("${CMAKE_BINARY_DIR}")
+
+link_directories("${CMAKE_BINARY_DIR}/lib")
+link_directories("${CMAKE_INSTALL_PREFIX}/lib")
+link_directories(${Boost_LIBRARY_DIRS})
+
+set(DART_CORE_DEPENDENCIES ${FCL_LIBRARIES} ${Assimp_LIBRARIES} ${Boost_LIBRARIES} ${OPENGL_LIBRARIES} ${GLUT_LIBRARY})
+if(NOT BUILD_CORE_ONLY)
+  set(DART_DEPENDENCIES ${urdfdom_LIBRARIES} ${TinyXML_LIBRARIES} ${TinyXML2_LIBRARIES})
+endif()
+
+###############
 # Generate the Dart CMake Config file
-file(GLOB cmake_mods "cmake/Modules/*.cmake")
-configure_file(${CMAKE_SOURCE_DIR}/cmake/DARTConfig.cmake.in ${CMAKE_BINARY_DIR}/cmake/DARTConfig.cmake @ONLY)
-configure_file(${CMAKE_SOURCE_DIR}/cmake/FindDARTExt.cmake.in ${CMAKE_BINARY_DIR}/cmake/FindDARTExt.cmake @ONLY)
-install(FILES ${CMAKE_BINARY_DIR}/cmake/DARTConfig.cmake DESTINATION share/dart)
-install(FILES ${CMAKE_BINARY_DIR}/cmake/FindDARTExt.cmake DESTINATION share/dart)
+configure_file(cmake/DARTCoreConfig.cmake.in "${CMAKE_BINARY_DIR}/cmake/DARTCoreConfig.cmake" @ONLY)
+install(FILES ${CMAKE_BINARY_DIR}/cmake/DARTCoreConfig.cmake DESTINATION share/dartcore)
+if(NOT BUILD_CORE_ONLY)
+  configure_file(cmake/DARTConfig.cmake.in "${CMAKE_BINARY_DIR}/cmake/DARTConfig.cmake" @ONLY)
+  install(FILES ${CMAKE_BINARY_DIR}/cmake/DARTConfig.cmake DESTINATION share/dart)
+endif()
 
 set(PC_CONFIG_IN ${CMAKE_SOURCE_DIR}/cmake/dart.pc.in)
 set(PC_CONFIG_OUT ${CMAKE_BINARY_DIR}/cmake/dart.pc)
@@ -79,20 +151,17 @@ configure_file(${PC_CONFIG_IN} ${PC_CONFIG_OUT} @only)
 install(FILES ${PC_CONFIG_OUT} DESTINATION lib/pkgconfig)
 
 ###############
-# Find important packages
-set(CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}/cmake")
-find_package(DARTExt REQUIRED)
+add_subdirectory(dart)
+if(NOT BUILD_CORE_ONLY)
+  enable_testing()
+  add_subdirectory(unittests)
+  add_subdirectory(apps)
+endif()
 
-include_directories(BEFORE src)
-include_directories(${DARTExt_INCLUDE_DIRS})
-include_directories("${CMAKE_BINARY_DIR}/src")
-link_directories("${CMAKE_BINARY_DIR}/lib")
-link_directories(${DARTExt_LIBRARY_DIRS})
-
-add_subdirectory(src)
-enable_testing()
-add_subdirectory(unittests)
-add_subdirectory(apps)
+install(EXPORT DARTCoreTargets DESTINATION share/dartcore)
+if(NOT BUILD_CORE_ONLY)
+  install(EXPORT DARTTargets DESTINATION share/dart)
+endif()
 
 ###############
 # Add an "uninstall" target
@@ -130,12 +199,12 @@ endif()
 set(CPACK_PACKAGE_NAME "dart")
 set(CPACK_SYSTEM_NAME "i386")
 if( CMAKE_SIZEOF_VOID_P EQUAL 8 )
-    set(CPACK_SYSTEM_NAME "amd64")    
+    set(CPACK_SYSTEM_NAME "amd64")
 endif()
 set(CPACK_PACKAGE_VERSION_MAJOR ${DART_MAJOR_VERSION})
 set(CPACK_PACKAGE_VERSION_MINOR ${DART_MINOR_VERSION})
 set(CPACK_PACKAGE_VERSION_PATCH ${DART_PATCH_VERSION})
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "freeglut3, freeglut3-dev, libboost1.46-all-dev, libflann-dev (>=1.8), libccd (>=1.4.2), fcl (>=0.2.7), libeigen3-dev, libxmu-dev, libxi-dev, libgtest-dev, libtinyxml-dev, libtinyxml2-dev, libassimp3, libassimp-dev (>=3.0~dfsg-1), urdfdom")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "freeglut3, freeglut3-dev, libboost1.46-all-dev, libccd (>=1.4.2), fcl (>=0.2.7), libeigen3-dev, libxmu-dev, libxi-dev, libgtest-dev, libtinyxml-dev, libtinyxml2-dev, libassimp3, libassimp-dev (>=3.0~dfsg-1), urdfdom")
 
 set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
 set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${CPACK_PACKAGE_VERSION}_${CPACK_SYSTEM_NAME}")

@@ -1,10 +1,8 @@
 # @file CMakeLists.txt
 # @author Can Erdogan
 # @date Feb 02, 2013
-# @brief The CMakefile for the tests for the RRT implementations. NOTE Assumes every .cpp file is 
+# @brief The CMakefile for the tests for the RRT implementations. NOTE Assumes every .cpp file is
 # a test file with a "main" function.
-
-project(UnitTests)
 
 # Create a macro to check if a list contains a value
 macro(list_contains var value)
@@ -24,14 +22,14 @@ if(NOT WIN32)
     include_directories(/usr/src/gtest)
     add_library(gtest /usr/src/gtest/src/gtest-all.cc ${gtest_hdrs})
   elseif(APPLE)
-    add_definitions (-DGTEST_USE_OWN_TR1_TUPLE)    
+    add_definitions (-DGTEST_USE_OWN_TR1_TUPLE)
     file(GLOB gtest_hdrs "/usr/local/share/gtest/include/*.h" "/usr/local/share/gtest/include/internal/*.h")
     include_directories(/usr/local/share/gtest/include)
     include_directories(/usr/local/share/gtest)
     add_library(gtest /usr/local/share/gtest/src/gtest-all.cc ${gtest_hdrs})
-  endif()    
+  endif()
 
-  target_link_libraries(gtest)
+  target_link_libraries(gtest pthread)
   set_target_properties (gtest PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 endif()
 
@@ -43,12 +41,12 @@ foreach(test ${tests})
 	get_filename_component(base ${test} NAME_WE)
 	link_directories(${DARTExt_LIBRARY_DIRS})
 	add_executable(${base} ${test})
-	target_link_libraries(${base} optimized dart debug dartd optimized gtest debug gtestd ${DARTExt_LIBRARIES})
-
-	# Link to pthread if necessary
-	if(APPLE OR UNIX)
-		target_link_libraries(${base} pthread)
+	if(MSVC)
+		target_link_libraries(${base} dart optimized gtest debug gtestd)
+	else()
+		target_link_libraries(${base} dart gtest)
 	endif()
+
 	set_target_properties(${base} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/tests")
 
 	# Add the executable if not to be ignored
@@ -56,6 +54,6 @@ foreach(test ${tests})
 	if(NOT contains)
 		add_test(${base} ${CMAKE_BINARY_DIR}/bin/tests/${base})
 		message("-- Adding test: " ${base})
-	endif(NOT contains) 
+	endif(NOT contains)
 endforeach(test)
 
