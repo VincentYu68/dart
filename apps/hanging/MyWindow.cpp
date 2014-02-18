@@ -29,7 +29,7 @@ void MyWindow::initDyn()
     // default standing pose
     mDofs[1][1] = -0.1;
     mDofs[1][6] = 0.2; // left hip
-    mDofs[1][9] = -0.5; // left knee
+    mDofs[1][9] = -0.4; // left knee
     mDofs[1][10] = 0.3; // left ankle
     mDofs[1][13] = 0.2; // right hip
     mDofs[1][16] = -0.5; // right knee
