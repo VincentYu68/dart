@@ -146,7 +146,7 @@ Eigen::VectorXd World::evalDeriv() {
 
 void World::setTimeStep(double _timeStep) {
   assert(_timeStep > 0.0 && "Invalid timestep.");
-
+    
   mTimeStep = _timeStep;
   mConstraintHandler->setTimeStep(_timeStep);
   for (std::vector<dynamics::Skeleton*>::iterator it = mSkeletons.begin();

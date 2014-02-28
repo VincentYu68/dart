@@ -47,6 +47,7 @@
 #include <Eigen/Dense>
 
 #include <dart/dynamics/BodyNode.h>
+#include <dart/simulation/FemSim.h>
 
 namespace dart {
 namespace dynamics {
@@ -111,6 +112,8 @@ public:
   /// \brief
   void addFace(const Eigen::Vector3i& _face);
 
+    void addTetra(int, int, int, int);
+    
   /// \brief
   const Eigen::Vector3i& getFace(int _idx) const;
 
@@ -118,6 +121,8 @@ public:
   int getNumFaces();
 
 
+    
+    void initFEM();
 protected:
   //--------------------------------------------------------------------------
   // Sub-functions for Recursive Kinematics Algorithms
@@ -212,6 +217,8 @@ protected:
   // Documentation inherited.
   virtual void clearExternalForces();
 
+    
+    
   //--------------------------------------------------------------------------
   // Rendering
   //--------------------------------------------------------------------------
@@ -244,6 +251,8 @@ protected:
 
   /// \brief Soft mesh shape for collision.
   SoftMeshShape* mSoftCollShape;
+    
+  dart::simulation::FemSimulation * femsim;
 
 private:
   /// \brief

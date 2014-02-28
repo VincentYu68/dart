@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2014, Georgia Tech Research Corporation
  * All rights reserved.
  *
- * Author(s): Jeongseok Lee <jslee02@gmail.com>
+ * Author(s): Wenhao Yu <stacormed@gmail.com>
  *
  * Georgia Tech Graphics Lab and Humanoid Robotics Lab
  *
@@ -40,8 +40,8 @@
  *   POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef APPS_TESTDROP_MYWINDOW_H_
-#define APPS_TESTDROP_MYWINDOW_H_
+#ifndef APPS_FEMDROP_MYWINDOW_H_
+#define APPS_FEMDROP_MYWINDOW_H_
 
 #include <dart/math/MathTypes.h>
 #include <dart/gui/Win3D.h>
@@ -75,4 +75,4 @@ private:
   Eigen::Vector3d mForceOnVertex;
 };
 
-#endif  // APPS_TESTDROP_MYWINDOW_H_
+#endif  // APPS_FEMDROP_MYWINDOW_H_

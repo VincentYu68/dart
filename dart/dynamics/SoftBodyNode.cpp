@@ -48,7 +48,7 @@
 
 #include "dart/dynamics/PointMass.h"
 #include "dart/dynamics/SoftMeshShape.h"
-
+int fra = 0;
 namespace dart {
 namespace dynamics {
 
@@ -60,12 +60,16 @@ SoftBodyNode::SoftBodyNode(const std::string& _name)
     mSoftVisualShape(NULL),
     mSoftCollShape(NULL)
 {
+    femsim = new dart::simulation::FemSimulation();
+    femsim->setParameters(250, 0.35);
 }
 
 SoftBodyNode::~SoftBodyNode()
 {
   for (int i = 0; i < mPointMasses.size(); ++i)
     delete mPointMasses[i];
+    
+    delete femsim;
 }
 
 int SoftBodyNode::getNumPointMasses() const
@@ -101,6 +105,10 @@ void SoftBodyNode::init(Skeleton* _skeleton, int _skeletonIndex)
 //  BodyNode::addCollisionShape(mSoftCollShape);
 }
 
+/*void SoftBodyNode::initFEM() {
+    femsim->setPoints(mPointMasses);
+}*/
+    
 void SoftBodyNode::aggregateGenCoords(std::vector<GenCoord*>* _genCoords)
 {
   BodyNode::aggregateGenCoords(_genCoords);
@@ -196,6 +204,10 @@ void SoftBodyNode::addFace(const Eigen::Vector3i& _face)
   mFaces.push_back(_face);
 }
 
+    void SoftBodyNode::addTetra(int p1, int p2, int p3, int p4) {
+        femsim->addTetra(p1, p2, p3, p4);
+    }
+    
 const Eigen::Vector3i& SoftBodyNode::getFace(int _idx) const
 {
   assert(0 <= _idx && _idx < mFaces.size());
@@ -225,7 +237,7 @@ void SoftBodyNode::updateTransform_Issue122(double _timeStep)
 
 void SoftBodyNode::updateVelocity()
 {
-  BodyNode::updateVelocity();
+  //BodyNode::updateVelocity();
 
   for (int i = 0; i < mPointMasses.size(); ++i)
     mPointMasses.at(i)->updateVelocity();
@@ -233,7 +245,7 @@ void SoftBodyNode::updateVelocity()
 
 void SoftBodyNode::updateEta()
 {
-  BodyNode::updateEta();
+  //BodyNode::updateEta();
 
   for (int i = 0; i < mPointMasses.size(); ++i)
     mPointMasses.at(i)->updateEta();
@@ -241,7 +253,7 @@ void SoftBodyNode::updateEta()
 
 void SoftBodyNode::updateEta_Issue122()
 {
-  BodyNode::updateEta_Issue122();
+  //BodyNode::updateEta_Issue122();
 
   for (int i = 0; i < mPointMasses.size(); ++i)
     mPointMasses.at(i)->updateEta();
@@ -249,7 +261,7 @@ void SoftBodyNode::updateEta_Issue122()
 
 void SoftBodyNode::updateAcceleration()
 {
-  BodyNode::updateAcceleration();
+  //BodyNode::updateAcceleration();
 
   for (int i = 0; i < mPointMasses.size(); ++i)
     mPointMasses.at(i)->updateAcceleration();
@@ -258,6 +270,8 @@ void SoftBodyNode::updateAcceleration()
 void SoftBodyNode::updateBodyForce(const Eigen::Vector3d& _gravity,
                                    bool _withExternalForces)
 {
+    
+    
   for (int i = 0; i < mPointMasses.size(); ++i)
     mPointMasses.at(i)->updateBodyForce(_gravity, _withExternalForces);
 
@@ -294,7 +308,7 @@ void SoftBodyNode::updateGeneralizedForce(bool _withDampingForces)
   for (int i = 0; i < mPointMasses.size(); ++i)
     mPointMasses.at(i)->updateGeneralizedForce(_withDampingForces);
 
-  BodyNode::updateGeneralizedForce(_withDampingForces);
+  //BodyNode::updateGeneralizedForce(_withDampingForces);
 }
 
 void SoftBodyNode::updateArticulatedInertia(double _timeStep)
@@ -381,6 +395,10 @@ void SoftBodyNode::updateArticulatedInertia(double _timeStep)
 void SoftBodyNode::updateBiasForce(double _timeStep,
                                    const Eigen::Vector3d& _gravity)
 {
+    /*fra ++;
+    femsim->updateTetraState();
+    femsim->updateForce();*/
+    
   for (int i = 0; i < mPointMasses.size(); ++i)
     mPointMasses.at(i)->updateBiasForce(_timeStep, _gravity);
 
@@ -436,15 +454,16 @@ void SoftBodyNode::updateBiasForce(double _timeStep,
 
 void SoftBodyNode::update_ddq()
 {
-  BodyNode::update_ddq();
-
+    
+  //BodyNode::update_ddq();
+    
   for (int i = 0; i < mPointMasses.size(); ++i)
     mPointMasses.at(i)->update_ddq();
 }
 
 void SoftBodyNode::update_F_fs()
 {
-  BodyNode::update_F_fs();
+  //BodyNode::update_F_fs();
 
   for (int i = 0; i < mPointMasses.size(); ++i)
     mPointMasses.at(i)->update_F_fs();
@@ -859,7 +878,7 @@ void SoftBodyNode::draw(renderer::RenderInterface* _ri,
   for (int i = 0; i < mVizShapes.size(); i++)
   {
     _ri->pushMatrix();
-    mVizShapes[i]->draw(_ri, _color, _useDefaultColor);
+    //mVizShapes[i]->draw(_ri, _color, _useDefaultColor);
     _ri->popMatrix();
   }
 
@@ -876,12 +895,34 @@ void SoftBodyNode::draw(renderer::RenderInterface* _ri,
 
   // edges (mesh)
   Eigen::Vector4d fleshColor = _color;
-  fleshColor[3] = 0.5;
+  fleshColor[3] = 1;
   _ri->setPenColor(fleshColor);
 //  if (_showMeshs)
   {
     Eigen::Vector3d pos;
     Eigen::Vector3d pos_normalized;
+      std::vector<dynamics::FEM_Tetra* > mtetra = femsim->getTetras();
+      /*for (int i = 0;i < mtetra.size();i ++) {
+          for (int j = 0; j < 4; j ++) {
+              glEnable(GL_AUTO_NORMAL);
+              glBegin(GL_TRIANGLES);
+              
+              pos = mtetra[i]->getPoint(j%4)->mX;
+              pos_normalized = pos.normalized();
+              glNormal3f(pos_normalized(0), pos_normalized(1), pos_normalized(2));
+              glVertex3f(pos(0), pos(1), pos(2));
+              pos = mtetra[i]->getPoint((j+1)%4)->mX;
+              pos_normalized = pos.normalized();
+              glNormal3f(pos_normalized(0), pos_normalized(1), pos_normalized(2));
+              glVertex3f(pos(0), pos(1), pos(2));
+              pos = mtetra[i]->getPoint((j+2)%4)->mX;
+              pos_normalized = pos.normalized();
+              glNormal3f(pos_normalized(0), pos_normalized(1), pos_normalized(2));
+              glVertex3f(pos(0), pos(1), pos(2));
+              glEnd();
+          }
+      }*/
+      
     for (int i = 0; i < mFaces.size(); ++i)
     {
       glEnable(GL_AUTO_NORMAL);
@@ -910,10 +951,22 @@ void SoftBodyNode::draw(renderer::RenderInterface* _ri,
   {
     getChildBodyNode(i)->draw(_ri, _color, _useDefaultColor);
   }
-
+    
+    
+    /*
+    if (fra >= 100) {
+    std::cout<<"\ncurrent frame:"<<fra<<"\n";
+    std::cout<<mPointMasses[0]->get_q()<<std::endl;
+    std::cout<<mPointMasses[1]->get_q()<<std::endl;
+    std::cout<<mPointMasses[2]->get_q()<<std::endl;
+    std::cout<<mPointMasses[3]->get_q()<<std::endl;
+    }*/
+    
   _ri->popMatrix();
 }
 
+    
+    
 void SoftBodyNode::_addPiToArticulatedInertia(const Eigen::Vector3d& _p,
                                               double _Pi)
 {
@@ -963,7 +1016,7 @@ void SoftBodyNodeHelper::setBox(SoftBodyNode*            _softBodyNode,
   // Point masses
   //----------------------------------------------------------------------------
   // Number of point masses
-  int nPointMasses = 8;\
+  int nPointMasses = 24;\
 
   // Mass per vertices
   double mass = _totalMass / nPointMasses;
@@ -971,30 +1024,46 @@ void SoftBodyNodeHelper::setBox(SoftBodyNode*            _softBodyNode,
   // Resting positions for each point mass
   std::vector<Eigen::Vector3d> restingPos(nPointMasses,
                                           Eigen::Vector3d::Zero());
-  restingPos[0] = _size.cwiseProduct(Eigen::Vector3d(-1.0, -1.0, -1.0)) * 0.5;
-  restingPos[1] = _size.cwiseProduct(Eigen::Vector3d(+1.0, -1.0, -1.0)) * 0.5;
-  restingPos[2] = _size.cwiseProduct(Eigen::Vector3d(-1.0, +1.0, -1.0)) * 0.5;
-  restingPos[3] = _size.cwiseProduct(Eigen::Vector3d(+1.0, +1.0, -1.0)) * 0.5;
-  restingPos[4] = _size.cwiseProduct(Eigen::Vector3d(-1.0, -1.0, +1.0)) * 0.5;
-  restingPos[5] = _size.cwiseProduct(Eigen::Vector3d(+1.0, -1.0, +1.0)) * 0.5;
-  restingPos[6] = _size.cwiseProduct(Eigen::Vector3d(-1.0, +1.0, +1.0)) * 0.5;
-  restingPos[7] = _size.cwiseProduct(Eigen::Vector3d(+1.0, +1.0, +1.0)) * 0.5;
+  restingPos[0] = Eigen::Vector3d(-1.0, -1.0, -1.0) * 0.5;
+  restingPos[1] = Eigen::Vector3d(+1.0, -1.0, -1.0) * 0.5;
+  restingPos[2] = Eigen::Vector3d(-1.0, +1.0, -1.0) * 0.5;
+  restingPos[3] = Eigen::Vector3d(+1.0, +1.0, -1.0) * 0.5;
+  restingPos[4] = Eigen::Vector3d(-1.0, -1.0, +1.0) * 0.5;
+  restingPos[5] = Eigen::Vector3d(+1.0, -1.0, +1.0) * 0.5;
+  restingPos[6] = Eigen::Vector3d(-1.0, +1.0, +1.0) * 0.5;
+  restingPos[7] = Eigen::Vector3d(+1.0, +1.0, +1.0) * 0.5;
+    
+    for (int i = 8; i < nPointMasses; i ++) {
+        restingPos[i] = restingPos[i-4] + Eigen::Vector3d(0,0,1);
+    }
+    
+    /*restingPos[0] = Eigen::Vector3d(0.0,     std::sqrt(6)/3.0,   0.0);
+    restingPos[1] = Eigen::Vector3d(0.0,     0.0,                -std::sqrt(3)/3.0);
+    restingPos[2] = Eigen::Vector3d(-0.5,    0.0,                std::sqrt(3)/6.0);
+    restingPos[3] = Eigen::Vector3d(0.5,     0.0,                std::sqrt(3)/6.0);*/
 
   // Point masses
   dynamics::PointMass* newPointMass = NULL;
   for (int i = 0; i < nPointMasses; ++i)
   {
     newPointMass = new PointMass(_softBodyNode);
-    newPointMass->setRestingPosition(_localTransfom * restingPos[i]);
+    newPointMass->setRestingPosition(restingPos[i]);
     newPointMass->setMass(mass);
+      
+      if (i == 2 || i == 3 || i == 0 || i == 1) newPointMass->setImmobile(true);
+      //if (i != 0 && i != 1 && i != 4 && i != 5) newPointMass->setImmobile(true);
+      
+      //if (i == 0) newPointMass->setImmobile(true);
+      
     _softBodyNode->addPointMass(newPointMass);
   }
 
+    //_softBodyNode->initFEM();
   //----------------------------------------------------------------------------
   // Edges
   //----------------------------------------------------------------------------
   // -- Bottoms
-  _softBodyNode->connectPointMasses(0, 1);
+  /*_softBodyNode->connectPointMasses(0, 1);
   _softBodyNode->connectPointMasses(1, 3);
   _softBodyNode->connectPointMasses(3, 2);
   _softBodyNode->connectPointMasses(2, 0);
@@ -1009,12 +1078,16 @@ void SoftBodyNodeHelper::setBox(SoftBodyNode*            _softBodyNode,
   _softBodyNode->connectPointMasses(0, 4);
   _softBodyNode->connectPointMasses(1, 5);
   _softBodyNode->connectPointMasses(2, 6);
-  _softBodyNode->connectPointMasses(3, 7);
+  _softBodyNode->connectPointMasses(3, 7);*/
 
   //----------------------------------------------------------------------------
   // Faces
   //----------------------------------------------------------------------------
   // -- +Z
+    /*_softBodyNode->addFace(Eigen::Vector3i(1, 0, 2));
+    _softBodyNode->addFace(Eigen::Vector3i(1, 0, 3));
+    _softBodyNode->addFace(Eigen::Vector3i(1, 3, 2));
+    _softBodyNode->addFace(Eigen::Vector3i(3, 0, 2));*/
   _softBodyNode->addFace(Eigen::Vector3i(1, 0, 2));  // 0
   _softBodyNode->addFace(Eigen::Vector3i(1, 2, 3));  // 1
 
@@ -1037,6 +1110,22 @@ void SoftBodyNodeHelper::setBox(SoftBodyNode*            _softBodyNode,
   // -- +X
   _softBodyNode->addFace(Eigen::Vector3i(2, 0, 4));  // 10
   _softBodyNode->addFace(Eigen::Vector3i(2, 4, 6));  // 11
+
+    //----------------------------------------------------------------------------
+    // Tetras
+    //----------------------------------------------------------------------------
+
+    for (int i = 0; i < (nPointMasses-4)/4 ; i ++) {
+        _softBodyNode->addTetra(1+4*i, 0+4*i, 2+4*i, 4+4*i);
+        _softBodyNode->addTetra(1+4*i, 2+4*i, 3+4*i, 7+4*i);
+        _softBodyNode->addTetra(2+4*i, 6+4*i, 4+4*i, 7+4*i);
+        _softBodyNode->addTetra(2+4*i, 4+4*i, 7+4*i, 1+4*i);
+        _softBodyNode->addTetra(1+4*i, 4+4*i, 5+4*i, 7+4*i);
+    }
+    
+    //_softBodyNode->addTetra(0,1,2,3);
+    std::cout<<"tetra_set\n";
+
 }
 
 void SoftBodyNodeHelper::setBox(SoftBodyNode*            _softBodyNode,

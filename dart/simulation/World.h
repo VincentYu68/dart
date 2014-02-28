@@ -94,7 +94,7 @@ public:
   // Simulation
   //--------------------------------------------------------------------------
   /// \brief Calculate the dynamics and integrate the world for one step.
-  void step();
+  virtual void step();
 
   /// \brief
   void setTime(double _time);

@@ -43,17 +43,17 @@
 #include <iostream>
 
 #include "dart/utils/Paths.h"
-#include "dart/utils/SoftParser.h"
-#include "dart/simulation/SoftWorld.h"
+#include "dart/utils/FemParser.h"
+#include "dart/simulation/FemWorld.h"
 #include "apps/softCubes/MyWindow.h"
 
 int main(int argc, char* argv[])
 {
   // load a skeleton file
   // create and initialize the world
-  dart::simulation::SoftWorld* myWorld
-      = dart::utils::SoftSkelParser::readSoftFile(
-          DART_DATA_PATH"skel/soft_cubes.skel");
+  dart::simulation::FEMWorld* myWorld
+      = dart::utils::FEMSkelParser::readFEMFile(
+          DART_DATA_PATH"skel/fem_cubes.skel");
   assert(myWorld != NULL);
 
   // create a window and link it to the world
@@ -67,7 +67,7 @@ int main(int argc, char* argv[])
   std::cout << "'1'--'4': programmed interaction" << std::endl;
 
   glutInit(&argc, argv);
-  window.initWindow(640, 480, "Soft Cubes");
+  window.initWindow(640, 480, "FEM Cubes");
   glutMainLoop();
 
   return 0;

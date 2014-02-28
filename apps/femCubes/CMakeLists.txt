@@ -1,6 +1,6 @@
 ###############################################
-# apps/softCubes
-set(APP_NAME softCubes)
+# apps/femCubes
+set(APP_NAME femCubes)
 file(GLOB ${APP_NAME}_srcs "*.cpp")
 file(GLOB ${APP_NAME}_hdrs "*.h")
 add_executable(${APP_NAME} ${${APP_NAME}_srcs} ${${APP_NAME}_hdrs})

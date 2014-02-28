@@ -402,7 +402,7 @@ public:
   //--------------------------------------------------------------------------
   // Sub-functions for Recursive Kinematics Algorithms
   //--------------------------------------------------------------------------
-  /// \brief Update local transformations and world transformations.
+  //// \brief Update local transformations and world transformations.
   virtual void updateTransform();
 
   /// @brief // TODO(JS): This is workaround for Issue #122.

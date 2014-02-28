@@ -44,6 +44,8 @@
 
 #include "dart/dynamics/SoftBodyNode.h"
 
+#include <iostream>
+
 namespace dart {
 namespace dynamics {
 
@@ -70,6 +72,8 @@ PointMass::PointMass(SoftBodyNode* _softBodyNode)
   mGenCoords.push_back(&mCoordinate[0]);
   mGenCoords.push_back(&mCoordinate[1]);
   mGenCoords.push_back(&mCoordinate[2]);
+    
+    immobile = false;
 }
 
 PointMass::~PointMass()
@@ -119,6 +123,7 @@ bool PointMass::isColliding()
 
 void PointMass::addExtForce(const Eigen::Vector3d& _force, bool _isForceLocal)
 {
+    if (immobile) return;
   if (_isForceLocal)
   {
     mFext += _force;
@@ -249,6 +254,7 @@ void PointMass::updateTransform()
 
 void PointMass::updateVelocity()
 {
+    if (immobile) mV.setZero();
   // v = w(parent) x mX + v(parent) + dq
   mV = mParentSoftBodyNode->getBodyVelocity().head<3>().cross(mX)
        + mParentSoftBodyNode->getBodyVelocity().tail<3>()
@@ -258,6 +264,7 @@ void PointMass::updateVelocity()
 
 void PointMass::updateEta()
 {
+    if (immobile) return;
   // eta = w(parent) x dq
   Eigen::Vector3d dq = get_dq();
   mEta = mParentSoftBodyNode->getBodyVelocity().head<3>().cross(dq);
@@ -266,6 +273,7 @@ void PointMass::updateEta()
 
 void PointMass::updateAcceleration()
 {
+    if (immobile) mdV.setZero();
   // dv = dw(parent) x mX + dv(parent) + eata + ddq
   mdV = mParentSoftBodyNode->getBodyAcceleration().head<3>().cross(mX) +
         mParentSoftBodyNode->getBodyAcceleration().tail<3>() +
@@ -276,8 +284,10 @@ void PointMass::updateAcceleration()
 void PointMass::updateBodyForce(const Eigen::Vector3d& _gravity,
                                 bool _withExternalForces)
 {
+    if (immobile) mF.setZero();
   // f = m*dv + w(parent) x m*v - fext
   mF.noalias() = mMass * mdV;
+    
   mF += mParentSoftBodyNode->getBodyVelocity().head<3>().cross(mMass * mV)
         - mFext;
   if (mParentSoftBodyNode->getGravityMode() == true)
@@ -290,6 +300,7 @@ void PointMass::updateBodyForce(const Eigen::Vector3d& _gravity,
 
 void PointMass::updateArticulatedInertia(double _dt)
 {
+    if (immobile) return;
   // Articulated inertia
   // - Do nothing
 
@@ -313,12 +324,14 @@ void PointMass::updateArticulatedInertia(double _dt)
 
 void PointMass::updateGeneralizedForce(bool _withDampingForces)
 {
+    if (immobile) return;
   // tau = f
   set_tau(mF);
 }
 
 void PointMass::updateBiasForce(double _dt, const Eigen::Vector3d& _gravity)
 {
+    if (immobile) return;
   // B = w(parent) x m*v - fext - fgravity
   // - w(parent) x m*v - fext
   mB = mParentSoftBodyNode->getBodyVelocity().head<3>().cross(mMass*mV) - mFext;
@@ -336,16 +349,23 @@ void PointMass::updateBiasForce(double _dt, const Eigen::Vector3d& _gravity)
   double ke = mParentSoftBodyNode->getEdgeSpringStiffness();
   double kd = mParentSoftBodyNode->getDampingCoefficient();
   int nN = mConnectedPointMasses.size();
-  mAlpha = get_tau()
-           - (kv + nN * ke) * get_q()
-           - (_dt * (kv + nN * ke) + kd) * get_dq()
-           - mMass * mEta
-           - mB;
+  mAlpha = //get_tau()
+           //- (kv + nN * ke) * get_q()
+           //- (_dt * (kv + nN * ke) + kd) * get_dq()
+           //- mMass * mEta
+           - mB
+    ;
+    //std::cout<<mAlpha<<std::endl;
+    //mAlpha.setZero();
   for (int i = 0; i < mConnectedPointMasses.size(); ++i)
   {
-    mAlpha += ke * (mConnectedPointMasses[i]->get_q()
-                    + _dt * mConnectedPointMasses[i]->get_dq());
+    //mAlpha += ke * (mConnectedPointMasses[i]->get_q()
+      //              + _dt * mConnectedPointMasses[i]->get_dq());
+      
+      /*mAlpha +=  0.1 * ((mConnectedPointMasses[i]->getWorldPosition() - getWorldPosition()).squaredNorm()/(mConnectedPointMasses[i]->getRestingPosition() - getRestingPosition()).squaredNorm()) * (mConnectedPointMasses[i]->getWorldPosition() - getWorldPosition()).normalized();*/
+      
   }
+    //std::cout<<mAlpha<<std::endl<<std::endl;
   assert(!math::isNan(mAlpha));
 
   // Cache data: beta
@@ -356,10 +376,11 @@ void PointMass::updateBiasForce(double _dt, const Eigen::Vector3d& _gravity)
 
 void PointMass::update_ddq()
 {
+    if (immobile) return;
   // ddq = imp_psi*(alpha - m*(dw(parent) x mX + dv(parent))
   Eigen::Vector3d ddq =
-      mImplicitPsi
-      * (mAlpha - mMass
+      1.0
+      * (mAlpha - mMass*0
          * (mParentSoftBodyNode->getBodyAcceleration().head<3>().cross(mX)
             + mParentSoftBodyNode->getBodyAcceleration().tail<3>()));
   set_ddq(ddq);
@@ -371,6 +392,7 @@ void PointMass::update_ddq()
 
 void PointMass::update_F_fs()
 {
+    if (immobile) return;
   // f = m*dv + B
   mF = mB;
   mF.noalias() += mMass * mdV;
@@ -379,6 +401,7 @@ void PointMass::update_F_fs()
 
 void PointMass::updateMassMatrix()
 {
+    if (immobile) return;
   mM_dV = get_ddq()
           + mParentSoftBodyNode->mM_dV.head<3>().cross(mX)
           + mParentSoftBodyNode->mM_dV.tail<3>();
@@ -387,6 +410,7 @@ void PointMass::updateMassMatrix()
 
 void PointMass::aggregateMassMatrix(Eigen::MatrixXd* _MCol, int _col)
 {
+    
   // Assign
   // We assume that the three generalized coordinates are in a row.
   int iStart = getGenCoord(0)->getSkeletonIndex();

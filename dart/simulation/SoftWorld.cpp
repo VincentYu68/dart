@@ -44,6 +44,7 @@
 
 #include "dart/constraint/SoftConstraintDynamics.h"
 #include "dart/collision/fcl_mesh/SoftFCLMeshCollisionDetector.h"
+#include <iostream>
 
 namespace dart {
 namespace simulation {
@@ -59,7 +60,7 @@ SoftWorld::SoftWorld()
 
   mConstraintHandler->setCollisionDetector(
         new collision::SoftFCLMeshCollisionDetector());
-}
+    }
 
 SoftWorld::~SoftWorld()
 {

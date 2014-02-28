@@ -96,7 +96,9 @@ public:
   /// \param[in] _isForceLocal True if _force's reference frame is of the parent
   ///                          soft body node. False if _force's reference frame
   ///                          is of the world.
-  void addExtForce(const Eigen::Vector3d& _force, bool _isForceLocal = false);
+    void setImmobile(bool i) {immobile = i;}
+    
+    void addExtForce(const Eigen::Vector3d& _force, bool _isForceLocal = false);
 
   /// \brief
   void clearExtForce();
@@ -308,7 +310,11 @@ protected:
 
   /// \brief Whether the node is currently in collision with another node.
   bool mIsColliding;
+    
+    bool immobile;
 
+    
+    
 private:
   EllipsoidShape* mShape;
 

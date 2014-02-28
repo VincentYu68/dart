@@ -57,6 +57,7 @@ MyWindow::MyWindow()
 {
   mForceOnRigidBody = Eigen::Vector3d::Zero();
   mForceOnVertex = Eigen::Vector3d::Zero();
+    
 }
 
 MyWindow::~MyWindow()

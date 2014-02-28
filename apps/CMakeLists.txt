@@ -36,7 +36,7 @@ foreach(APPDIR
     softSingleBodyTest
     softSinglePendulumTest
 
-
+    femCubes
 
 
 

@@ -35,6 +35,7 @@
  */
 
 #include "dart/integration/EulerIntegrator.h"
+#include <iostream>
 
 namespace dart {
 namespace integration {
