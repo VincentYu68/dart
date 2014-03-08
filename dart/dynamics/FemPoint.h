@@ -113,6 +113,15 @@ public:
     
     void setGravity(const Eigen::Vector3d& _g);
 
+    void addConnectedPoint(FEMPoint*);
+    
+    void preCompute();
+    
+    Eigen::Matrix3d computeOrthCoord(Eigen::Vector3d v1, Eigen::Vector3d v2, Eigen::Vector3d v3);
+    
+    void updateRotationMatrix();
+    
+    Eigen::Matrix3d getRotationMatrix();
 protected:
   /// \brief
   void init();
@@ -164,6 +173,13 @@ protected:
     /// \brief A increasingly sorted list of dependent dof indices.
     std::vector<int> mDependentGenCoordIndices;
 
+    /// \brief 3 connected points for computing rotation matrix R
+    std::vector<FEMPoint* > mConnectedPoints;
+    
+    /// \brief rotation matrix
+    Eigen::Matrix3d _mR;
+    
+    Eigen::Matrix3d _mN;
 private:
   EllipsoidShape* mShape;
 

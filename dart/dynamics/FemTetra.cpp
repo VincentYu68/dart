@@ -134,6 +134,13 @@ namespace dart {
             
             rest_pos_inv = temp.inverse();
             
+            // add connected point to points
+            for (int i = 0; i < 4; i ++) {
+                for (int j = 3; j >= 1; j --) {
+                    mPoints[i]->addConnectedPoint(mPoints[(i+j)%4]);
+                }
+            }
+            
             //std::cout<<rest_pos_inv<<std::endl;
         }
         

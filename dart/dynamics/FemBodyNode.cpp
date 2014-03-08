@@ -340,7 +340,7 @@ void FEMBodyNodeHelper::setBox(FEMBodyNode*            _femBodyNode,
   // Point masses
   //----------------------------------------------------------------------------
   // Number of point masses
-  int nPointMasses = 76;
+  int nPointMasses = 4;
 
   // Mass per vertices
   double mass = _totalMass / nPointMasses;
@@ -348,7 +348,7 @@ void FEMBodyNodeHelper::setBox(FEMBodyNode*            _femBodyNode,
   // Resting positions for each point mass
   std::vector<Eigen::Vector3d> restingPos(nPointMasses,
                                           Eigen::Vector3d::Zero());
-    restingPos[0] = Eigen::Vector3d(-1.0, -1.0, -1.0) * 0.5;
+    /*restingPos[0] = Eigen::Vector3d(-1.0, -1.0, -1.0) * 0.5;
     restingPos[1] = Eigen::Vector3d(+1.0, -1.0, -1.0) * 0.5;
     restingPos[2] = Eigen::Vector3d(-1.0, +1.0, -1.0) * 0.5;
     restingPos[3] = Eigen::Vector3d(+1.0, +1.0, -1.0) * 0.5;
@@ -359,13 +359,13 @@ void FEMBodyNodeHelper::setBox(FEMBodyNode*            _femBodyNode,
 
     for (int i = 8; i < nPointMasses; i ++) {
         restingPos[i] = restingPos[i-4] + Eigen::Vector3d(0,0,1);
-    }
+    }*/
 
     
-    /*restingPos[0] = Eigen::Vector3d(0.0,     std::sqrt(6)/3.0,   0.0);
+    restingPos[0] = Eigen::Vector3d(0.0,     std::sqrt(6)/3.0,   0.0);
      restingPos[1] = Eigen::Vector3d(0.0,     0.0,                -std::sqrt(3)/3.0);
      restingPos[2] = Eigen::Vector3d(-0.5,    0.0,                std::sqrt(3)/6.0);
-     restingPos[3] = Eigen::Vector3d(0.5,     0.0,                std::sqrt(3)/6.0);*/
+     restingPos[3] = Eigen::Vector3d(0.5,     0.0,                std::sqrt(3)/6.0);
     
   // Point masses
   dynamics::FEMPoint* newPointMass = NULL;
@@ -376,8 +376,9 @@ void FEMBodyNodeHelper::setBox(FEMBodyNode*            _femBodyNode,
     newPointMass->setMass(mass);
       
       //if (i <= 3) newPointMass->setImmobile(true);
-      if (i == 2 || i == 3 || i == 7 || i == 6) newPointMass->setImmobile(true);
-      //if (i == 0) newPointMass->setImmobile(true);
+      //if (i == 2 || i == 3 || i == 7 || i == 6) newPointMass->setImmobile(true);
+      if (i == 2 || i == 1) newPointMass->setImmobile(true);
+      //if (i == 0 || i == 1 || i == 4 || i == 5) newPointMass->setImmobile(true);
       
     _femBodyNode->addPointMass(newPointMass);
   }
@@ -416,19 +417,19 @@ void FEMBodyNodeHelper::setBox(FEMBodyNode*            _femBodyNode,
     //----------------------------------------------------------------------------
     // Tetras
     //----------------------------------------------------------------------------
-    for (int i = 0; i < (nPointMasses-4)/4 ; i ++) {
+    /*for (int i = 0; i < (nPointMasses-4)/4 ; i ++) {
         _femBodyNode->addTetra(1+4*i, 0+4*i, 2+4*i, 4+4*i);
         _femBodyNode->addTetra(1+4*i, 2+4*i, 3+4*i, 7+4*i);
         _femBodyNode->addTetra(2+4*i, 6+4*i, 4+4*i, 7+4*i);
         _femBodyNode->addTetra(2+4*i, 4+4*i, 7+4*i, 1+4*i);
         _femBodyNode->addTetra(1+4*i, 4+4*i, 5+4*i, 7+4*i);
-    }
-    /*_femBodyNode->addFace(Eigen::Vector3i(0,1,2));
+    }*/
+    _femBodyNode->addFace(Eigen::Vector3i(0,1,2));
     _femBodyNode->addFace(Eigen::Vector3i(1,2,3));
     _femBodyNode->addFace(Eigen::Vector3i(2,3,0));
     _femBodyNode->addFace(Eigen::Vector3i(3,0,1));
     
-    _femBodyNode->addTetra(1, 0, 2, 3);*/
+    _femBodyNode->addTetra(1, 0, 2, 3);
     
     _femBodyNode->postAddingTetra();
     

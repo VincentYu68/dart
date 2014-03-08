@@ -216,13 +216,63 @@ void FEMPoint::draw(renderer::RenderInterface* _ri,
   mShape->draw(_ri, color2, false);
   _ri->popMatrix();
 //  _ri->popName();
-
-
 }
     
     void FEMPoint::setGravity(const Eigen::Vector3d& _g) {
         //mGravity = _g;
     }
 
+    void FEMPoint::addConnectedPoint(FEMPoint* p) {
+        /*if (mConnectedPoints.size() == 3) {
+            mConnectedPoints.erase(mConnectedPoints.begin()+1);
+        }
+        mConnectedPoints.push_back(p);*/
+        
+        if (mConnectedPoints.size() < 3) {
+            mConnectedPoints.push_back(p);
+        }
+    }
+    
+    void FEMPoint::preCompute() {
+        if (mConnectedPoints.size() < 3) {
+            std::cout<<"Connected point assignment error.\n";
+            return;
+        }
+        Eigen::Matrix3d temp = computeOrthCoord(mConnectedPoints[0]->getRestingPosition() - getRestingPosition(),
+                                                mConnectedPoints[1]->getRestingPosition() - getRestingPosition(),
+                                                mConnectedPoints[2]->getRestingPosition() - getRestingPosition());
+        _mN = temp.transpose();
+    }
+    
+    Eigen::Matrix3d FEMPoint::computeOrthCoord(Eigen::Vector3d v1, Eigen::Vector3d v2, Eigen::Vector3d v3)
+    {
+        v1.normalize(); v2.normalize(); v3.normalize();
+        Eigen::Vector3d n1, n2, n3;
+        n1 = (v1+v2+v3); n1.normalize();
+        n2 = v1.cross(n1); n2.normalize();
+        n3 = n1.cross(n2); n3.normalize();
+        
+        Eigen::Matrix3d rst;
+        rst << n1, n2, n3;
+        return rst;
+    }
+    
+    void FEMPoint::updateRotationMatrix() {
+        Eigen::Matrix3d Ns = computeOrthCoord(mConnectedPoints[0]->get_q()-get_q(),
+                                            mConnectedPoints[1]->get_q() - get_q(),
+                                           mConnectedPoints[2]->get_q() - get_q());
+        // std::cout << Ns << std::endl;
+        _mR = Ns*_mN;
+    }
+    
+    Eigen::Matrix3d FEMPoint::getRotationMatrix() {
+        return _mR;
+    }
+    
 }  // namespace dynamics
 }  // namespace dart
+
+
+
+
+

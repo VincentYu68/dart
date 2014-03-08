@@ -128,6 +128,9 @@ namespace dart {
         }
         
         void FemSimulation::postAddingTetra() {
+            for (int i = 0; i < mPoints.size(); i ++) {
+                mPoints[i]->preCompute();
+            }
             initK();
         }
         
@@ -152,14 +155,18 @@ namespace dart {
             // implicit euler
             Eigen::SparseMatrix<double> M(mPoints.size()*3, mPoints.size()*3);
             Eigen::SparseMatrix<double> A(mPoints.size()*3, mPoints.size()*3);
+            Eigen::SparseMatrix<double> R(mPoints.size()*3, mPoints.size()*3);
             Eigen::VectorXd newforce(mPoints.size()*3);
-            Eigen::VectorXd posdif(mPoints.size()*3);
+            Eigen::VectorXd curpos(mPoints.size()*3);
+            Eigen::VectorXd restpos(mPoints.size()*3);
             Eigen::VectorXd b(mPoints.size()*3);
             Eigen::VectorXd x(mPoints.size()*3);
             Eigen::VectorXd tempq(mPoints.size()*3);
+            Eigen::Matrix3d tempR;
             
             M.setZero();
             A.setZero();
+            R.setZero();
             newforce.setZero();
             b.setZero();
             
@@ -169,17 +176,32 @@ namespace dart {
             }
             
             // compute for A
+            // aggregate rotation R
+            for (int i = 0; i < mPoints.size(); i ++) {
+                mPoints[i]->updateRotationMatrix();
+                tempR = mPoints[i]->getRotationMatrix();
+                for (int j = 0; j < 3; j ++) {
+                    for (int k = 0; k < 3; k ++) {
+                        R.coeffRef(i*3+j, i*3+k) = tempR(j, k);
+                    }
+                }
+            }
+            
+            //std::cout << R << std::endl << std::endl;
+            
+            // aggregate mass matrix M
             for (int i = 0; i < mPoints.size()*3; i ++) {
                 M.coeffRef(i, i) = mPoints[i/3]->getMass();
             }
-            A = M - dt*dt*_K;
+            A = M - dt*dt*R*_K*R.transpose();
             
             // compute for b
             for (int i = 0; i < mPoints.size(); i ++) {
-                posdif.segment(i*3, 3) = mPoints[i]->get_q()-mPoints[i]->getRestingPosition();
+                curpos.segment(i*3, 3) = mPoints[i]->get_q();
+                restpos.segment(i*3, 3) = mPoints[i]->getRestingPosition();
             }
             
-            newforce = _K * posdif;
+            newforce = R*_K*R.transpose()*curpos - R*_K*restpos;
             for (int i = 0; i < mPoints.size(); i ++) {
                 newforce.segment(i*3, 3) += mPoints[i]->getExtForce();
             }
