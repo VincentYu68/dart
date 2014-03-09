@@ -79,15 +79,13 @@ namespace dart {
         }
         
         void FemSimulation::initK() {
-            _K.resize(mPoints.size()*3, mPoints.size()*3);
-            _K.setZero();
             
             for (int i = 0; i < mTetras.size(); i ++) {
-                mTetras[i]->initK(_K);
+                mTetras[i]->initK();
             }
             //std::cout<<_K<<std::endl;
-            Eigen::VectorXd tt(mPoints.size()*3);
-            for (int i = 0;i < mPoints.size()*3;i ++) tt(i) = 0.5;
+            //Eigen::VectorXd tt(mPoints.size()*3);
+            //for (int i = 0;i < mPoints.size()*3;i ++) tt(i) = 0.5;
             //tt << 1,1,1, 1,1,1, 1,1,1, 1,1,1;
             //std::cout << tt << std::endl<<std::endl;
             //std::cout << _K*tt<<std::endl<<std::endl;
@@ -103,10 +101,10 @@ namespace dart {
             Eigen::VectorXd posdif(mPoints.size()*3);
             
             for (int i = 0; i < mPoints.size(); i ++) {
-                posdif.segment(i*3, 3) = mPoints[i]->get_q()-mPoints[i]->getRestingPosition();
+            //    posdif.segment(i*3, 3) = mPoints[i]->get_q()-mPoints[i]->getRestingPosition();
             }
             
-            newforce = _K * posdif;
+           // newforce = _K * posdif;
             
             for (int i = 0; i < mPoints.size(); i ++) {
                 //std::cout << newforce.segment(i*3,3) << std::endl << std::endl;
@@ -128,10 +126,17 @@ namespace dart {
         }
         
         void FemSimulation::postAddingTetra() {
-            for (int i = 0; i < mPoints.size(); i ++) {
+            /*for (int i = 0; i < mPoints.size(); i ++) {
                 mPoints[i]->preCompute();
-            }
+            }*/
             initK();
+            
+            K.resize(mPoints.size()*3, mPoints.size()*3);
+            M.resize(mPoints.size()*3, mPoints.size()*3);
+            // aggregate mass matrix M
+            for (int i = 0; i < mPoints.size()*3; i ++) {
+                M.coeffRef(i, i) = mPoints[i/3]->getMass();
+            }
         }
         
         
@@ -153,55 +158,49 @@ namespace dart {
             }*/
             
             // implicit euler
-            Eigen::SparseMatrix<double> M(mPoints.size()*3, mPoints.size()*3);
-            Eigen::SparseMatrix<double> A(mPoints.size()*3, mPoints.size()*3);
-            Eigen::SparseMatrix<double> R(mPoints.size()*3, mPoints.size()*3);
-            Eigen::VectorXd newforce(mPoints.size()*3);
-            Eigen::VectorXd curpos(mPoints.size()*3);
-            Eigen::VectorXd restpos(mPoints.size()*3);
-            Eigen::VectorXd b(mPoints.size()*3);
-            Eigen::VectorXd x(mPoints.size()*3);
-            Eigen::VectorXd tempq(mPoints.size()*3);
-            Eigen::Matrix3d tempR;
+            static Eigen::SparseMatrix<double> A(mPoints.size()*3, mPoints.size()*3);
+            static Eigen::VectorXd newforce(mPoints.size()*3);
+            static Eigen::VectorXd curpos(mPoints.size()*3);
+            static Eigen::VectorXd f0(mPoints.size()*3);
+            static Eigen::VectorXd b(mPoints.size()*3);
+            static Eigen::VectorXd x(mPoints.size()*3);
             
-            M.setZero();
+            K.setZero();
             A.setZero();
-            R.setZero();
             newforce.setZero();
             b.setZero();
+            f0.setZero();
             
-            // aggregate position q
-            for (int  i = 0; i < mPoints.size(); i ++) {
-                tempq.segment(i*3, 3) = mPoints[i]->get_q();
+            // aggregate quantities
+            for (int i = 0; i < mTetras.size(); i ++) {
+                mTetras[i]->updateRotationMatrix();
+                mTetras[i]->aggregateK(K);
+                mTetras[i]->aggregateF0(f0);
             }
+            
+            
+            //std::cout << f0 << std::endl << std::endl;
+            //std::cout<<K<<std::endl;
+            //Eigen::VectorXd tt(mPoints.size()*3);
+            //for (int i = 0;i < mPoints.size()*3;i ++) tt(i) = 0.5;
+            //tt << 1,1,1, 1,1,1, 1,1,1, 1,1,1;
+            //std::cout << tt << std::endl<<std::endl;
+            //std::cout << K*tt<<std::endl<<std::endl;
+            
             
             // compute for A
-            // aggregate rotation R
-            for (int i = 0; i < mPoints.size(); i ++) {
-                mPoints[i]->updateRotationMatrix();
-                tempR = mPoints[i]->getRotationMatrix();
-                for (int j = 0; j < 3; j ++) {
-                    for (int k = 0; k < 3; k ++) {
-                        R.coeffRef(i*3+j, i*3+k) = tempR(j, k);
-                    }
-                }
-            }
             
-            //std::cout << R << std::endl << std::endl;
             
-            // aggregate mass matrix M
-            for (int i = 0; i < mPoints.size()*3; i ++) {
-                M.coeffRef(i, i) = mPoints[i/3]->getMass();
-            }
-            A = M - dt*dt*R*_K*R.transpose();
+            A = M - dt*dt*K;
             
             // compute for b
             for (int i = 0; i < mPoints.size(); i ++) {
                 curpos.segment(i*3, 3) = mPoints[i]->get_q();
-                restpos.segment(i*3, 3) = mPoints[i]->getRestingPosition();
+                //restpos.segment(i*3, 3) = mPoints[i]->getRestingPosition();
             }
             
-            newforce = R*_K*R.transpose()*curpos - R*_K*restpos;
+            newforce = K*curpos - f0;
+            //std::cout << K*curpos << std::endl << f0 << std::endl << std::endl;
             for (int i = 0; i < mPoints.size(); i ++) {
                 newforce.segment(i*3, 3) += mPoints[i]->getExtForce();
             }
@@ -221,7 +220,7 @@ namespace dart {
                     continue;
                 }
                 mPoints[i]->set_dq(x.segment(i*3,3));
-                mPoints[i]->set_q(tempq.segment(i*3,3) + dt*x.segment(i*3,3));
+                mPoints[i]->set_q(curpos.segment(i*3,3) + dt*x.segment(i*3,3));
             }
         }
         

@@ -134,21 +134,19 @@ namespace dart {
             
             rest_pos_inv = temp.inverse();
             
-            // add connected point to points
+            /*// add connected point to points
             for (int i = 0; i < 4; i ++) {
                 for (int j = 3; j >= 1; j --) {
                     mPoints[i]->addConnectedPoint(mPoints[(i+j)%4]);
                 }
-            }
+            }*/
             
             //std::cout<<rest_pos_inv<<std::endl;
         }
         
-        void FEM_Tetra::initK(Eigen::SparseMatrix<double>& _K) {
-            // construct the entire K
-            
+        void FEM_Tetra::initK() {
             // compute for submatrix Kij relating v_i and v_j
-            Eigen::Matrix3d subK, mid1, mid2, ele1, ele2, ele3, ele4;
+            Eigen::Matrix3d mid1, mid2, ele1, ele2, ele3, ele4;
             
             Eigen::Matrix3d temp;
             temp << mPoints[1]->getRestingPosition()-mPoints[0]->getRestingPosition(), mPoints[2]->getRestingPosition()-mPoints[0]->getRestingPosition(), mPoints[3]->getRestingPosition()-mPoints[0]->getRestingPosition();
@@ -164,18 +162,18 @@ namespace dart {
             float c = temp.determinant() * young_mod * (1-2*poiss_rat)/(1+poiss_rat)/(1-2*poiss_rat);
             
             mid1 << a, b, b,
-                    b, a, b,
-                    b, b, a;
+            b, a, b,
+            b, b, a;
             
             mid2 << c, 0, 0,
-                    0, c, 0,
-                    0, 0, c;
+            0, c, 0,
+            0, 0, c;
             
             for (int i = 0; i < 4; i ++) {
                 for (int j = i ; j < 4; j ++) {
                     ele1 << ys[i].x(),     0,      0,
-                            0,          ys[i].y(), 0,
-                            0,          0,      ys[i].z();
+                    0,          ys[i].y(), 0,
+                    0,          0,      ys[i].z();
                     
                     ele2 << ys[j].x(),     0,      0,
                     0,          ys[j].y(), 0,
@@ -189,17 +187,91 @@ namespace dart {
                     0, ys[j].z(), ys[j].y(),
                     ys[j].z(), 0, ys[j].x();
                     
-                    subK = ele1*mid1*ele2+ele3*mid2*ele4;
-                    
-                    for (int k = 0; k < subK.rows(); k ++) {
-                        for (int l = 0; l < subK.cols(); l ++) {
-                            _K.coeffRef(mPointIndexes[i]*3+k, mPointIndexes[j]*3+l) += subK(k, l);
+                    _K[i*(9-i)/2+j-i] = ele1*mid1*ele2+ele3*mid2*ele4;
+                }
+            }
+            
+            for (int i = 0; i < 4; i ++) {
+                _f0[i].setZero();
+            }
+            for (int j = 0; j < 4; j ++) {
+                //_f0[i].setZero();
+                for (int i = 0; i < 4; i ++) {
+                    if (j < i)
+                        _f0[i] += _K[j*(9-j)/2+i-j].transpose() * mPoints[j]->getRestingPosition();
+                    else
+                        _f0[i] += _K[i*(9-i)/2+j-i] * mPoints[j]->getRestingPosition();
+
+                }
+            }
+        }
+        
+        void FEM_Tetra::aggregateF0(Eigen::VectorXd& f0) {
+            for (int i = 0; i < 4; i ++) {
+                f0.segment(mPointIndexes[i]*3, 3) += _R*_f0[i];
+            }
+        }
+        
+        void FEM_Tetra::aggregateK(Eigen::SparseMatrix<double>& K) {
+            // construct the entire K
+            static Eigen::Matrix3d tempmat;
+            for (int i = 0; i < 4; i ++) {
+                for (int j = i; j < 4; j ++) {
+                    tempmat = _R*_K[i*(9-i)/2+j-i]*_R.transpose();
+                    for (int k = 0; k < 3; k ++) {
+                        for (int l = 0; l < 3; l ++) {
+                            K.coeffRef(mPointIndexes[i]*3+k, mPointIndexes[j]*3+l) += tempmat(k,l);
                             if (i != j)
-                                _K.coeffRef(mPointIndexes[j]*3+l, mPointIndexes[i]*3+k) += subK(k, l);
+                                K.coeffRef(mPointIndexes[j]*3+l, mPointIndexes[i]*3+k) += tempmat(k,l);
                         }
                     }
                 }
             }
+        }
+    
+        void FEM_Tetra::updateRotationMatrix() {
+            Eigen::Matrix3d p, A;
+            p << mPoints[1]->get_q()-mPoints[0]->get_q(), mPoints[2]->get_q()-mPoints[0]->get_q(), mPoints[3]->get_q()-mPoints[0]->get_q();
+            
+            A = p * rest_pos_inv;
+            
+            Eigen::Vector3d r0, r1, r2;
+            
+            r0 = A.col(0);
+            r0.normalize();
+            r1 = A.col(1) - r0.dot(A.col(1))*r0;
+            r1.normalize();
+            r2 = r0.cross(r1);
+            r2.normalize();
+            
+            _R << r0, r1, r2;
+            
+            /*Eigen::Matrix3d N, N2;
+            
+            Vector3d v1, v2, v3;
+            
+            v1 = mPoints[1]->getRestingPosition() - mPoints[0]->getRestingPosition();
+            v2 = mPoints[2]->getRestingPosition() - mPoints[0]->getRestingPosition();
+            v3 = mPoints[3]->getRestingPosition() - mPoints[0]->getRestingPosition();
+            v1.normalize(); v2.normalize(); v3.normalize();
+            Eigen::Vector3d n1, n2, n3;
+            n1 = (v1+v2+v3); n1.normalize();
+            n2 = v1.cross(n1); n2.normalize();
+            n3 = n1.cross(n2); n3.normalize();
+            
+            N << n1, n2, n3;
+            
+            v1 = mPoints[1]->get_q() - mPoints[0]->get_q();
+            v2 = mPoints[2]->get_q() - mPoints[0]->get_q();
+            v3 = mPoints[3]->get_q() - mPoints[0]->get_q();
+            v1.normalize(); v2.normalize(); v3.normalize();
+            n1 = (v1+v2+v3); n1.normalize();
+            n2 = v1.cross(n1); n2.normalize();
+            n3 = n1.cross(n2); n3.normalize();
+            
+            N2 << n1, n2, n3;
+            
+            _R = N2*N.transpose();*/
         }
         
     }   // namespace dynamics

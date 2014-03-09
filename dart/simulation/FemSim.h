@@ -98,11 +98,13 @@ protected:
     
     std::vector<dynamics::FEM_Tetra* > mTetras;
     
+    Eigen::SparseMatrix<double> K;
+    
+    Eigen::SparseMatrix<double> M;
+    
     float _young_mod;
     
     float _poisson_rat;
-    
-    Eigen::SparseMatrix<double> _K;
 private:
     
 public:

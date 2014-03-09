@@ -2,7 +2,7 @@
 <skel version="1.0">
     <world name="world 1">
         <physics>
-            <time_step>0.00005</time_step>
+            <time_step>0.001</time_step>
             <gravity>0 -9.81 0</gravity>
             <collision_detector>fcl_mesh</collision_detector>
         </physics>
@@ -51,7 +51,7 @@
                         </box>
                     </geometry>
 		<ym>250.0</ym>
-		<pr>0.0</pr>
+		<pr>0.1</pr>
                 </fem_shape>
                 <visualization_shape>
                     <transformation>0 0 0 0 0 0</transformation>

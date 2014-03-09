@@ -113,7 +113,7 @@ public:
     
     void setGravity(const Eigen::Vector3d& _g);
 
-    void addConnectedPoint(FEMPoint*);
+    /*void addConnectedPoint(FEMPoint*);
     
     void preCompute();
     
@@ -121,7 +121,7 @@ public:
     
     void updateRotationMatrix();
     
-    Eigen::Matrix3d getRotationMatrix();
+    Eigen::Matrix3d getRotationMatrix();*/
 protected:
   /// \brief
   void init();

@@ -222,15 +222,11 @@ void FEMPoint::draw(renderer::RenderInterface* _ri,
         //mGravity = _g;
     }
 
-    void FEMPoint::addConnectedPoint(FEMPoint* p) {
-        /*if (mConnectedPoints.size() == 3) {
+    /*void FEMPoint::addConnectedPoint(FEMPoint* p) {
+        if (mConnectedPoints.size() == 3) {
             mConnectedPoints.erase(mConnectedPoints.begin()+1);
         }
-        mConnectedPoints.push_back(p);*/
-        
-        if (mConnectedPoints.size() < 3) {
-            mConnectedPoints.push_back(p);
-        }
+        mConnectedPoints.push_back(p);
     }
     
     void FEMPoint::preCompute() {
@@ -267,7 +263,7 @@ void FEMPoint::draw(renderer::RenderInterface* _ri,
     
     Eigen::Matrix3d FEMPoint::getRotationMatrix() {
         return _mR;
-    }
+    }*/
     
 }  // namespace dynamics
 }  // namespace dart

@@ -89,8 +89,14 @@ public:
                      void buildTet();
     
     FEMPoint *getPoint(int i) {return mPoints[i];}
+
+    void initK();
     
-    void initK(Eigen::SparseMatrix<double>&);
+    void aggregateF0(Eigen::VectorXd&);
+    
+    void aggregateK(Eigen::SparseMatrix<double>&);
+    
+    void updateRotationMatrix();
 protected:
   
                      
@@ -104,13 +110,15 @@ private:
   /// \brief
     float young_mod;           // young's modulous
     float poiss_rat;           // poisson ratio
-    Eigen::Matrix3d _strain;   //strain tensor
-    Eigen::Matrix3d _stress;   //stress tensor
+    Eigen::Matrix3d _strain;   // strain tensor
+    Eigen::Matrix3d _stress;   // stress tensor
     
     /// \brief
     Eigen::Matrix3d rest_pos_inv;
                      
-                     
+    Eigen::Matrix3d _K[16]; // stiffness matrix for each pair of points
+    Eigen::Vector3d _f0[4]; // _K*x0 for each points in resting state
+    Eigen::Matrix3d _R;     // rotation matrix
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
