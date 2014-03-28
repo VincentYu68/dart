@@ -201,6 +201,7 @@ public:
       int                    _nSlices,
       int                    _nStacks,
       double                 _totalMass);
+    
 };
 
 }  // namespace dynamics

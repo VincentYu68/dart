@@ -68,7 +68,7 @@ public:
     void addFemSim(FemSimulation*);
     
     void gatherFemSim();
-protected:
+
     std::vector<FemSimulation*> _femSims;
 };
 

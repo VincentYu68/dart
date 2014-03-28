@@ -94,7 +94,9 @@ public:
     
     void aggregateF0(Eigen::VectorXd&);
     
-    void aggregateK(Eigen::SparseMatrix<double>&);
+    void aggregateK(std::vector<Eigen::Triplet<double> > &, std::vector<int>);
+    void aggregateK(std::vector<Eigen::Triplet<double> > &);
+    // void aggregateK(Eigen::SparseMatrix<double> &);
     
     void updateRotationMatrix();
 protected:

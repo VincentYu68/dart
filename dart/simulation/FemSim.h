@@ -69,7 +69,7 @@ public:
   /// \brief Destructor.
   virtual ~FemSimulation();
 
-    void setParameters(float ym, float pr);
+    void setParameters(float ym, float pr, float md = 0, float sd = 0);
     
   //--------------------------------------------------------------------------
   // Simulation
@@ -85,6 +85,8 @@ public:
     /// \brief
     void setPoints(std::vector<dynamics::FEMPoint* > mPts);
     
+    void addPoint(dynamics::FEMPoint* pt);
+    
     /// \brief  add new tetrahedron
     void addTetra(int ind1, int ind2, int ind3, int ind4);
 
@@ -93,18 +95,49 @@ public:
     std::vector<dynamics::FEM_Tetra* > getTetras() {return mTetras;}
     
     void step(float dt);
+    
+    void addConstraintPoint(dynamics::FEMPoint*);
+    
+    void addControlledpoint(dynamics::FEMPoint*);
+    
+    void stretch(Eigen::Vector3d);
+    void rotate(float);
+    void free();
+    
+    void removeConstraints(Eigen::VectorXd&);
+    
+    void addConstraintsBack(Eigen::VectorXd&);
+    
+    // update the _nconstrainted_points_before array
+    void updateConstraintCountArray();
+   
+    void aggregateM(std::vector<Eigen::Triplet<double> > &tripletList, std::vector<int> num);
 protected:
     std::vector<dynamics::FEMPoint* > mPoints;
     
     std::vector<dynamics::FEM_Tetra* > mTetras;
     
-    Eigen::SparseMatrix<double> K;
+    Eigen::SparseMatrix<double> K;  // stiffness matrix
     
-    Eigen::SparseMatrix<double> M;
+    Eigen::SparseMatrix<double> Kcomplete;  //entire stiffness matrix
+    
+    Eigen::SparseMatrix<double> M;  // mass matrix
+    
+    Eigen::SparseMatrix<double> C;  // damping matrix
     
     float _young_mod;
     
     float _poisson_rat;
+    
+    float _mass_damping;
+    
+    float _stiffness_damping;
+    
+    std::vector<dynamics::FEMPoint*> mContraintPoints;
+    
+    std::vector<dynamics::FEMPoint*> mControlledPoints;
+    
+    std::vector<int> _nconstrainted_points_before;
 private:
     
 public:

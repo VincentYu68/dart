@@ -34,6 +34,7 @@
  *   POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "dart/utils/Paths.h"
 #include "dart/utils/FEMParser.h"
 
 #include <string>
@@ -66,6 +67,7 @@
 #include "dart/dynamics/FemSkeleton.h"
 #include "dart/simulation/FemWorld.h"
 #include "dart/simulation/FemSim.h"
+#include "dart/utils/volumetricMeshParser.h"
 
 namespace dart {
 namespace utils {
@@ -479,7 +481,13 @@ SkelParser::SkelBodyNode FEMSkelParser::readFEMBodyNode(
           double ym = getValueDouble(femShapeEle, "ym");
           double pr = getValueDouble(femShapeEle, "pr");
           
-          femsim->setParameters(ym, pr);
+          double md = 0, sd = 0;
+          if (hasElement(femShapeEle, "md") && hasElement(femShapeEle, "sd")) {
+              md = getValueDouble(femShapeEle, "md");
+              sd = getValueDouble(femShapeEle, "sd");
+          }
+          
+          femsim->setParameters(ym, pr, md, sd);
       }
       
     // geometry
@@ -520,6 +528,17 @@ SkelParser::SkelBodyNode FEMSkelParser::readFEMBodyNode(
       // Collision shape
       newFEMBodyNode->addCollisionShape(
             new dynamics::FEMMeshShape(newFEMBodyNode));
+    }
+    else if (hasElement(geometryEle, "volume_mesh"))
+    {
+        tinyxml2::XMLElement* meshEle = getElement(geometryEle, "volume_mesh");
+        std::string strCD(DART_DATA_PATH);
+        strCD.append(getValueString(meshEle, "filename"));
+        
+        setMesh(newFEMBodyNode, strCD.c_str(), T, totalMass);
+        
+        // Visualization shape
+        newFEMBodyNode->addVisualizationShape(new dynamics::FEMMeshShape(newFEMBodyNode));
     }
     else
     {
@@ -665,6 +684,85 @@ dynamics::Joint* FEMSkelParser::readFEMJoint(
 
   return newJoint;
 }
+
+    void FEMSkelParser::setMesh(dynamics::FEMBodyNode*          _femBodyNode,
+                                    const char *             _filename,
+                                    const Eigen::Isometry3d& _localTransfom,
+                                    double                 _totalMass)
+    {
+        char lineBuffer[1024];
+        utils::VolumetricMeshParser parser;
+        // first, read the nodes
+        sprintf(lineBuffer, "%s.node", _filename);
+        if (parser.open(lineBuffer) != 0)
+            throw 2;
+        parser.getNextLine(lineBuffer, 1);
+        int dim, numVertices, numElements;
+        sscanf(lineBuffer, "%d %d", &numVertices, &dim);
+        double mass = _totalMass / numVertices;
+        
+        // Point mass pointer
+        dynamics::FEMPoint* newPointMass = NULL;
+        std::cout<<numVertices<<std::endl;
+        
+        //int immob[] = {1,3,6,8,11,12,13,15,17,18,26,29,42,45,47,49,58,59,60,247,248,256,265};
+        //int immnum = 23;
+        int immob[] = {51, 52, 103, 104, 155, 156, 207, 208};
+        //int immob[] = {51, 127, 178};
+        int immnum = 8;
+        
+        for(int i=0; i<numVertices; i++)
+        {
+            parser.getNextLine(lineBuffer, 1);
+            int index;
+            double x,y,z;
+            sscanf(lineBuffer, "%d %lf %lf %lf", &index, &x, &y, &z);
+            newPointMass = new dynamics::FEMPoint(_femBodyNode);
+            newPointMass->setRestingPosition(_localTransfom * Eigen::Vector3d(x, y, z));
+            for (int j = 0; j < immnum; j ++) {
+                if ( i == immob[j]-1) newPointMass->setImmobile(true);
+            }
+            newPointMass->setMass(mass);
+            _femBodyNode->addPointMass(newPointMass);
+        }
+        
+        _femBodyNode->initFEM();
+        
+        parser.close();
+        
+        // next, read the elements
+        sprintf(lineBuffer, "%s.ele", _filename);
+        parser.open(lineBuffer);
+        
+        parser.getNextLine(lineBuffer, 1);
+        sscanf(lineBuffer, "%d %d", &numElements, &dim);
+        if (dim != 4)
+        {
+            printf("Error: not a tet mesh file (%d vertices per tet encountered).\n", dim);
+            throw 5;
+        }
+        
+        
+        for(int i=0; i<numElements; i++)
+        {
+            parser.getNextLine(lineBuffer, 1);
+            int index;
+            int v[4];
+            sscanf(lineBuffer, "%d %d %d %d %d", &index, &v[0], &v[1], &v[2], &v[3]);
+            if (index != (i+1))
+                throw 6;
+            _femBodyNode->addTetra(v[0]-1, v[1]-1, v[2]-1, v[3]-1);
+        }
+        
+        // std::cout<<"hemengmeng\n";
+        
+        _femBodyNode->postAddingTetra();
+        
+        std::cout<<"tetra_set\n";
+        
+        
+        parser.close();
+    }
 
 }  // namespace utils
 }  // namespace dart

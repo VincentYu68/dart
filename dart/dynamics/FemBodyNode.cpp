@@ -180,6 +180,36 @@ int FEMBodyNode::getNumFaces()
     
     void FEMBodyNode::initFEM() {
         femsim->setPoints(mPointMasses);
+        
+        // beam
+        for (int i = 60; i <= 63; i ++) {
+            femsim->addControlledpoint(mPointMasses[i]);
+        }
+        
+        //turtle
+        //int control[] = {296, 297, 298, 163, 301, 161, 166, 164, 82};
+        //int controlnum = 9;
+        
+        //asian dragon
+        //int control [] = {406, 427, 428, 684};
+        //int controlnum = 4;
+        
+        // beam3
+        //int control[] = {156, 104, 52, 0};
+        //int controlnum = 4;
+        
+        //for (int i = 0; i < controlnum; i ++) {
+        //    femsim->addControlledpoint(mPointMasses[control[i]]);
+        //    mPointMasses[control[i]]->setImmobile(true);
+        //}
+        
+        for (int i = 0; i < mPointMasses.size(); i ++) {
+            if (mPointMasses[i]->isImmobile()) {
+                femsim->addConstraintPoint(mPointMasses[i]);
+            }
+        }
+        
+        femsim->updateConstraintCountArray();
     }
     
     void FEMBodyNode::updateBodyForce(const Eigen::Vector3d& _gravity,
@@ -193,7 +223,7 @@ int FEMBodyNode::getNumFaces()
     void FEMBodyNode::updateBiasForce(double _timeStep, const Eigen::Vector3d& _gravity) {
         
         for (int i = 0; i < mPointMasses.size(); ++i) {
-            mPointMasses.at(i)->clearExtForce();
+            //mPointMasses.at(i)->clearExtForce();
             mPointMasses.at(i)->addExtForce(_gravity*mPointMasses.at(i)->getMass());
         }
     }
@@ -264,15 +294,19 @@ void FEMBodyNode::draw(renderer::RenderInterface* _ri,
 
   // edges (mesh)
   Eigen::Vector4d fleshColor = _color;
-  fleshColor[3] = 0.5;
+  fleshColor[3] = 1;
   _ri->setPenColor(fleshColor);
 //  if (_showMeshs)
   {
-    Eigen::Vector3d pos;
+    Eigen::Vector3d pos1, pos2, pos3, pos;
     Eigen::Vector3d pos_normalized;
       
-      std::vector<dynamics::FEM_Tetra* > mtetra = femsim->getTetras();
+      /*std::vector<dynamics::FEM_Tetra* > mtetra = femsim->getTetras();
       for (int i = 0;i < mtetra.size();i ++) {
+          fleshColor[0] = i*1.0/mtetra.size();
+          fleshColor[1] = i*1.0/mtetra.size()+0.1;
+          fleshColor[2] = i*1.0/mtetra.size();
+          _ri->setPenColor(fleshColor);
        for (int j = 0; j < 4; j ++) {
        glEnable(GL_AUTO_NORMAL);
        glBegin(GL_TRIANGLES);
@@ -291,29 +325,30 @@ void FEMBodyNode::draw(renderer::RenderInterface* _ri,
        glVertex3f(pos(0), pos(1), pos(2));
        glEnd();
        }
-    }
+    }*/
       
-    /*for (int i = 0; i < mFaces.size(); ++i)
+    for (int i = 0; i < mFaces.size(); ++i)
     {
       glEnable(GL_AUTO_NORMAL);
       glBegin(GL_TRIANGLES);
 
-      pos = mPointMasses[mFaces[i](0)]->getPosition();
-      pos_normalized = pos.normalized();
+      pos1 = mPointMasses[mFaces[i](0)]->getPosition();
+        pos2 = mPointMasses[mFaces[i](1)]->getPosition();
+        pos3 = mPointMasses[mFaces[i](2)]->getPosition();
+        pos_normalized = (pos3-pos1).cross(pos2-pos1);
+        pos_normalized = pos_normalized.normalized();
       glNormal3f(pos_normalized(0), pos_normalized(1), pos_normalized(2));
-      glVertex3f(pos(0), pos(1), pos(2));
-      pos = mPointMasses[mFaces[i](1)]->getPosition();
-      pos_normalized = pos.normalized();
+      glVertex3f(pos1(0), pos1(1), pos1(2));
+
      //   std::cout<<pos<<std::endl;
       glNormal3f(pos_normalized(0), pos_normalized(1), pos_normalized(2));
-      glVertex3f(pos(0), pos(1), pos(2));
-      pos = mPointMasses[mFaces[i](2)]->getPosition();
-      pos_normalized = pos.normalized();
+      glVertex3f(pos2(0), pos2(1), pos2(2));
+      
      //   std::cout<<pos<<std::endl<<std::endl;
       glNormal3f(pos_normalized(0), pos_normalized(1), pos_normalized(2));
-      glVertex3f(pos(0), pos(1), pos(2));
+      glVertex3f(pos3(0), pos3(1), pos3(2));
       glEnd();
-    }*/
+    }
   }
 
   _ri->popName();
@@ -376,10 +411,10 @@ void FEMBodyNodeHelper::setBox(FEMBodyNode*            _femBodyNode,
     newPointMass->setMass(mass);
       
       //if (i <= 3) newPointMass->setImmobile(true);
-      if (i == 2 || i == 3 || i == 7 || i == 6) newPointMass->setImmobile(true);
+      if (i == 0 || i == 1 || i == 2 || i == 3) newPointMass->setImmobile(true);
       //if (i == 2 || i == 1) newPointMass->setImmobile(true);
       //if (i == 0 || i == 1 || i == 4 || i == 5) newPointMass->setImmobile(true);
-      
+      if (i == 4+(nPointMasses-8) || i == 5+(nPointMasses-8) || i == 6+(nPointMasses-8) || i == 7+(nPointMasses-8)) newPointMass->setImmobile(true);
     _femBodyNode->addPointMass(newPointMass);
   }
     
@@ -402,16 +437,16 @@ void FEMBodyNodeHelper::setBox(FEMBodyNode*            _femBodyNode,
         _femBodyNode->addFace(Eigen::Vector3i(0+4*i, 1+4*i, 5+4*i));  // 5
 
         // -- +Y
-        _femBodyNode->addFace(Eigen::Vector3i(1+4*i, 3+4*i, 7+4*i));  // 6
-        _femBodyNode->addFace(Eigen::Vector3i(1+4*i, 7+4*i, 5+4*i));  // 7
+        _femBodyNode->addFace(Eigen::Vector3i(2+4*i, 3+4*i, 7+4*i));  // 6
+        _femBodyNode->addFace(Eigen::Vector3i(2+4*i, 7+4*i, 6+4*i));  // 7
 
         // -- -X
-        _femBodyNode->addFace(Eigen::Vector3i(3+4*i, 2+4*i, 6+4*i));  // 8
-        _femBodyNode->addFace(Eigen::Vector3i(3+4*i, 6+4*i, 7+4*i));  // 9
+        _femBodyNode->addFace(Eigen::Vector3i(0+4*i, 2+4*i, 6+4*i));  // 8
+        _femBodyNode->addFace(Eigen::Vector3i(0+4*i, 6+4*i, 4+4*i));  // 9
 
         // -- +X
-        _femBodyNode->addFace(Eigen::Vector3i(2+4*i, 0+4*i, 4+4*i));  // 10
-        _femBodyNode->addFace(Eigen::Vector3i(2+4*i, 4+4*i, 6+4*i));  // 11
+        _femBodyNode->addFace(Eigen::Vector3i(1+4*i, 7+4*i, 3+4*i));  // 10
+        _femBodyNode->addFace(Eigen::Vector3i(1+4*i, 5+4*i, 7+4*i));  // 11
     }
     
     //----------------------------------------------------------------------------
@@ -830,6 +865,8 @@ void FEMBodyNodeHelper::setEllipsoid(FEMBodyNode*          _softBodyNode,
   meshIdx3 = (_nStacks-1)*_nSlices;
   _softBodyNode->addFace(Eigen::Vector3i(meshIdx1, meshIdx2, meshIdx3));
 }
+    
+    
 
 }  // namespace dynamics
 }  // namespace dart

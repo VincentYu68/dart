@@ -44,6 +44,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <time.h>
 
 #include "dart/simulation/FemSim.h"
 
@@ -54,7 +55,8 @@ namespace dart {
         //--------------------------------------------------------------------------
         /// \brief Constructor.
         FemSimulation::FemSimulation() {
-            
+            _mass_damping = 0;
+            _stiffness_damping = 0;
         }
         
         /// \brief Destructor.
@@ -62,9 +64,11 @@ namespace dart {
             
         }
         
-        void FemSimulation::setParameters(float ym, float pr) {
+        void FemSimulation::setParameters(float ym, float pr, float md, float sd) {
             _young_mod = ym;
             _poisson_rat = pr;
+            _mass_damping = md;
+            _stiffness_damping = sd;
         }
         
         //--------------------------------------------------------------------------
@@ -115,6 +119,9 @@ namespace dart {
         /// \brief
         void FemSimulation::setPoints(std::vector<dynamics::FEMPoint* > mPts) {
             mPoints = mPts;
+            for (int i = 0; i < mPoints.size(); i ++) {
+                _nconstrainted_points_before.push_back(0);
+            }
         }
         
         /// \brief  add new tetrahedron
@@ -132,11 +139,14 @@ namespace dart {
             initK();
             
             K.resize(mPoints.size()*3, mPoints.size()*3);
+            Kcomplete.resize(mPoints.size()*3, mPoints.size()*3);
             M.resize(mPoints.size()*3, mPoints.size()*3);
             // aggregate mass matrix M
             for (int i = 0; i < mPoints.size()*3; i ++) {
                 M.coeffRef(i, i) = mPoints[i/3]->getMass();
             }
+            
+            // std::cout << mPoints.size() << " " << mTetras.size() << std::endl;
         }
         
         
@@ -158,29 +168,55 @@ namespace dart {
             }*/
             
             // implicit euler
-            static Eigen::SparseMatrix<double> A(mPoints.size()*3, mPoints.size()*3);
+            int dim = mPoints.size()-mContraintPoints.size();
+            Eigen::SparseMatrix<double> A(dim*3, dim*3);
+            K.resize(dim*3, dim*3);
+            M.resize(dim*3, dim*3);
             static Eigen::VectorXd newforce(mPoints.size()*3);
             static Eigen::VectorXd curpos(mPoints.size()*3);
             static Eigen::VectorXd f0(mPoints.size()*3);
-            static Eigen::VectorXd b(mPoints.size()*3);
-            static Eigen::VectorXd x(mPoints.size()*3);
+            Eigen::VectorXd b(mPoints.size()*3);
+            Eigen::VectorXd x(mPoints.size()*3);
             
             K.setZero();
             A.setZero();
+            C.setZero();
             newforce.setZero();
             b.setZero();
             f0.setZero();
             
+            clock_t t, e;
+            t = clock();
+            std::vector<Eigen::Triplet<double> > tripletListK, tripletListKC, tripletListM;
+            tripletListK.reserve(4*mPoints.size());
+            tripletListKC.reserve(4*mPoints.size());
+            tripletListM.reserve(3*mPoints.size());
             // aggregate quantities
+            aggregateM(tripletListM, _nconstrainted_points_before);
             for (int i = 0; i < mTetras.size(); i ++) {
                 mTetras[i]->updateRotationMatrix();
-                mTetras[i]->aggregateK(K);
+                mTetras[i]->aggregateK(tripletListK, _nconstrainted_points_before);
+                mTetras[i]->aggregateK(tripletListKC);
+                // mTetras[i]->aggregateK(K);
                 mTetras[i]->aggregateF0(f0);
             }
+            //std::cout << "size:" << tripletListK.size() << std::endl;
+            //std::cout << "sizeM:" << tripletListM.size() << std::endl;
+            //std::cout << "size2:" << K.rows() << " " << K.cols() << std::endl;
+            //t = clock();
+            K.setFromTriplets(tripletListK.begin(), tripletListK.end());
+            Kcomplete.setFromTriplets(tripletListKC.begin(), tripletListKC.end());
+            M.setFromTriplets(tripletListM.begin(), tripletListM.end());
+            //e = clock();
+            //std::cout << "nonzeros:" << K.nonZeros() << std::endl;
+            //std::cout << "He Mengmeng\n";
+            //std::cout << mTetras.size() << std::endl;
+            //std::cout << "time" << e-t << std::endl;
             
             
             //std::cout << f0 << std::endl << std::endl;
-            //std::cout<<K<<std::endl;
+            //std::cout<<"K:"<<K<<std::endl<<std::endl;
+            //std::cout<<"M:" << M << std::endl << std::endl;
             //Eigen::VectorXd tt(mPoints.size()*3);
             //for (int i = 0;i < mPoints.size()*3;i ++) tt(i) = 0.5;
             //tt << 1,1,1, 1,1,1, 1,1,1, 1,1,1;
@@ -189,17 +225,15 @@ namespace dart {
             
             
             // compute for A
-            
-            
-            A = M - dt*dt*K;
-            
+            A = M - dt*dt*K + dt*(_mass_damping*M + _stiffness_damping*K);
+                        //std::cout<< A.isCompressed() << std::endl;
             // compute for b
             for (int i = 0; i < mPoints.size(); i ++) {
                 curpos.segment(i*3, 3) = mPoints[i]->get_q();
                 //restpos.segment(i*3, 3) = mPoints[i]->getRestingPosition();
             }
             
-            newforce = K*curpos - f0;
+            newforce = Kcomplete*curpos - f0;
             //std::cout << K*curpos << std::endl << f0 << std::endl << std::endl;
             for (int i = 0; i < mPoints.size(); i ++) {
                 newforce.segment(i*3, 3) += mPoints[i]->getExtForce();
@@ -210,21 +244,131 @@ namespace dart {
             }
             b += dt*newforce;
             
+            removeConstraints(b);
+            
+            //std::cout << A.rows() << " " << A.cols() << " " << b.rows() << std::endl;
+            
             // solve Ax = b
             Eigen::ConjugateGradient<Eigen::SparseMatrix<double> > cg;
             cg.compute(A);
             x = cg.solve(b);
+            addConstraintsBack(x);
+            for (int i = 0; i < mPoints.size(); i ++) {
+                mPoints[i]->set_dq(x.segment(i*3,3));
+                mPoints[i]->set_q(curpos.segment(i*3,3) + dt*x.segment(i*3,3));
+                mPoints[i]->clearExtForce();
+            }
+        }
+        
+        void FemSimulation::addConstraintPoint(dynamics::FEMPoint* p) {
+            mContraintPoints.push_back(p);
+        }
+        
+        // update the _nconstrainted_points_before array
+        void FemSimulation::updateConstraintCountArray() {
+            int nbefore = 0;
+            for (int i = 0; i < mPoints.size(); i ++) {
+                _nconstrainted_points_before[i] = nbefore;
+                if (mPoints[i]->isImmobile()) {
+                    nbefore ++;
+                }
+            }
+        }
+        
+        void FemSimulation::addControlledpoint(dynamics::FEMPoint* p) {
+            mControlledPoints.push_back(p);
+        }
+        
+        void FemSimulation::stretch(Eigen::Vector3d dif) {
+            //static Eigen::Vector3d STRETCHFORCE = Eigen::Vector3d::Zero();
+            //STRETCHFORCE += dif;
+                for (int i = 0; i < mControlledPoints.size(); i ++) {
+                    //mControlledPoints[i]->addExtForce(STRETCHFORCE);
+                    //std::cout << mContraintPoints[i]->getExtForce() << std::endl;
+                    Eigen::Vector3d newpos = mControlledPoints[i]->get_q() + dif;
+                    mControlledPoints[i]->set_q(newpos);
+                }
+        }
+        
+        void FemSimulation::rotate(float ang) {
+            float radian = ang/180*3.1415926;
             
+            for (int i = 0; i < mControlledPoints.size(); i ++) {
+                Eigen::Vector3d pos = mControlledPoints[i]->get_q();
+                Eigen::Vector3d newpos;
+                newpos.x() = cos(radian)*pos.x() + sin(radian)*pos.y();
+                newpos.y() = -sin(radian)*pos.x() + cos(radian)*pos.y();
+                newpos.z() = pos.z();
+                    
+                mControlledPoints[i]->set_q(newpos);
+            }
+        }
+        
+        void FemSimulation::free() {
+            for (int i = 0; i < mControlledPoints.size(); i ++) {
+                mControlledPoints[i]->setImmobile(false);
+            }
+            
+            //std::cout << mContraintPoints.size() << std::endl;
+            
+            std::vector<dynamics::FEMPoint* >::iterator iter;
+            for (int i = 0; i < mControlledPoints.size(); i ++) {
+                //std::cout << mContraintPoints.size() << std::endl;
+                for (iter = mContraintPoints.begin(); iter != mContraintPoints.end() ; iter ++) {
+                    if (*iter == mControlledPoints[i]) {
+                        mContraintPoints.erase(iter);
+                        break;
+                    }
+                }
+            }
+            updateConstraintCountArray();
+        }
+        
+        void FemSimulation::removeConstraints(Eigen::VectorXd& v) {
+            int dim = v.rows() - mContraintPoints.size()*3;
+            
+            Eigen::VectorXd newv(dim);
+            int curp = 0;
+            for (int i = 0; i < mPoints.size(); i ++) {
+                if (!mPoints[i]->isImmobile()) {
+                    newv.segment(curp*3, 3) = v.segment(i*3, 3);
+                    curp ++;
+                }
+            }
+            v.resize(dim);
+            v = newv;
+        }
+        
+        void FemSimulation::addConstraintsBack(Eigen::VectorXd& v) {
+            int dim = v.rows() + mContraintPoints.size()*3;
+            
+            Eigen::VectorXd newv(dim);
+            int curp = 0;
+            for (int i = 0; i < mPoints.size(); i ++) {
+                if (!mPoints[i]->isImmobile()) {
+                    newv.segment(i*3, 3) = v.segment(curp*3, 3);
+                    curp ++;
+                }
+                else {
+                    newv.segment(i*3, 3) = Eigen::Vector3d::Zero();
+                }
+            }
+            v.resize(dim);
+            v = newv;
+        }
+        
+        void FemSimulation::aggregateM(std::vector<Eigen::Triplet<double> > &tripletList, std::vector<int> num) {
             for (int i = 0; i < mPoints.size(); i ++) {
                 if (mPoints[i]->isImmobile()) {
                     continue;
                 }
-                mPoints[i]->set_dq(x.segment(i*3,3));
-                mPoints[i]->set_q(curpos.segment(i*3,3) + dt*x.segment(i*3,3));
+                for (int j = 0; j < 3; j ++) {
+                    //std::cout << i << std::endl;
+                    tripletList.push_back(Eigen::Triplet<double>((i-num[i])*3+j, (i-num[i])*3+j, mPoints[i]->getMass()));
+                }
             }
+            
         }
-        
-        
         
     }  // namespace simulation
 }  // namespace dart

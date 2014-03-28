@@ -53,6 +53,7 @@ class FEMSkeleton;
 }  // namespace dynamics
 namespace simulation {
 class FEMWorld;
+    class FemSimulation;
 }  // namespace simulation
 }  // namespace dart
 
@@ -85,6 +86,11 @@ protected:
       tinyxml2::XMLElement* _jointElement,
       const std::vector<SkelBodyNode,
       Eigen::aligned_allocator<SkelBodyNode> >& _femBodyNodes);
+    
+  static void setMesh(dynamics::FEMBodyNode*          _femBodyNode,
+                                const char *             _filename,
+                                const Eigen::Isometry3d& _localTransfom,
+                                     double                 _totalMass);
 };
 
 }  // namespace utils

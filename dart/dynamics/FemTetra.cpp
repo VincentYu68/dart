@@ -35,6 +35,7 @@
  */
 
 #include "dart/dynamics/FemTetra.h"
+#include <time.h>
 
 using namespace Eigen;
 
@@ -212,12 +213,55 @@ namespace dart {
             }
         }
         
-        void FEM_Tetra::aggregateK(Eigen::SparseMatrix<double>& K) {
+        void FEM_Tetra::aggregateK(std::vector<Eigen::Triplet<double> > &tripletList, std::vector<int> num) {
+            // construct the entire K
+            static Eigen::Matrix3d tempmat = Eigen::Matrix3d::Identity();
+            for (int i = 0; i < 4; i ++) {
+                if (mPoints[i]->isImmobile()) {
+                    continue;
+                }
+                for (int j = i; j < 4; j ++) {
+                    if (mPoints[j]->isImmobile()) {
+                        continue;
+                    }
+                    tempmat = _R*_K[i*(9-i)/2+j-i]*_R.transpose();
+                    for (int k = 0; k < 3; k ++) {
+                        for (int l = 0; l < 3; l ++) {
+                            tripletList.push_back(Eigen::Triplet<double>((mPointIndexes[i]-num[mPointIndexes[i]])*3+k, (mPointIndexes[j]-num[mPointIndexes[j]])*3+l, tempmat(k,l)));
+                            if (i != j)
+                                tripletList.push_back(Eigen::Triplet<double>((mPointIndexes[j]-num[mPointIndexes[j]])*3+l, (mPointIndexes[i]-num[mPointIndexes[i]])*3+k, tempmat(k,l)));
+                        }
+                    }
+                }
+            }
+        }
+        
+        void FEM_Tetra::aggregateK(std::vector<Eigen::Triplet<double> > &tripletList) {
+            // construct the entire K
+            static Eigen::Matrix3d tempmat = Eigen::Matrix3d::Identity();
+            for (int i = 0; i < 4; i ++) {
+                for (int j = i; j < 4; j ++) {
+                    tempmat = _R*_K[i*(9-i)/2+j-i]*_R.transpose();
+                    for (int k = 0; k < 3; k ++) {
+                        for (int l = 0; l < 3; l ++) {
+                            tripletList.push_back(Eigen::Triplet<double>(mPointIndexes[i]*3+k, mPointIndexes[j]*3+l, tempmat(k,l)));
+                            if (i != j)
+                                tripletList.push_back(Eigen::Triplet<double>(mPointIndexes[j]*3+l, mPointIndexes[i]*3+k, tempmat(k,l)));
+                        }
+                    }
+                }
+            }
+        }
+        
+        /*void FEM_Tetra::aggregateK(Eigen::SparseMatrix<double>& K) {
             // construct the entire K
             static Eigen::Matrix3d tempmat;
             for (int i = 0; i < 4; i ++) {
                 for (int j = i; j < 4; j ++) {
                     tempmat = _R*_K[i*(9-i)/2+j-i]*_R.transpose();
+                    //if (mPoints[i]->isImmobile() || mPoints[j]->isImmobile())
+                        //std::cout<<"123\n";
+                        //tempmat.setIdentity();
                     for (int k = 0; k < 3; k ++) {
                         for (int l = 0; l < 3; l ++) {
                             K.coeffRef(mPointIndexes[i]*3+k, mPointIndexes[j]*3+l) += tempmat(k,l);
@@ -227,7 +271,7 @@ namespace dart {
                     }
                 }
             }
-        }
+        }*/
     
         void FEM_Tetra::updateRotationMatrix() {
             Eigen::Matrix3d p, A;
@@ -245,6 +289,8 @@ namespace dart {
             r2.normalize();
             
             _R << r0, r1, r2;
+            
+            // _R.setIdentity();
             
             /*Eigen::Matrix3d N, N2;
             

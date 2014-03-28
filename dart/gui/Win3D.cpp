@@ -227,7 +227,7 @@ void Win3D::initGL() {
 void Win3D::initLights() {
   static float ambient[]             = {0.2, 0.2, 0.2, 1.0};
   static float diffuse[]             = {0.6, 0.6, 0.6, 1.0};
-  static float front_mat_shininess[] = {60.0};
+  static float front_mat_shininess[] = {40.0};
   static float front_mat_specular[]  = {0.2, 0.2,  0.2,  1.0};
   static float front_mat_diffuse[]   = {0.5, 0.28, 0.38, 1.0};
   static float lmodel_ambient[]      = {0.2, 0.2,  0.2,  1.0};
@@ -235,6 +235,7 @@ void Win3D::initLights() {
 
   GLfloat position[] = {1.0, 0.0, 0.0, 0.0};
   GLfloat position1[] = {-1.0, 0.0, 0.0, 0.0};
+  GLfloat position2[] = {5.0, 5.0, 5.0, 0.0};
 
   glEnable(GL_LIGHT0);
   glLightfv(GL_LIGHT0, GL_AMBIENT,  ambient);
@@ -247,8 +248,12 @@ void Win3D::initLights() {
   glEnable(GL_LIGHT1);
   glLightfv(GL_LIGHT1, GL_DIFFUSE, diffuse);
   glLightfv(GL_LIGHT1, GL_POSITION, position1);
-  glEnable(GL_LIGHTING);
-  glEnable(GL_COLOR_MATERIAL);
+    
+    glEnable(GL_LIGHT2);
+    glLightfv(GL_LIGHT2, GL_DIFFUSE, diffuse);
+    glLightfv(GL_LIGHT2, GL_POSITION, position2);
+    glEnable(GL_LIGHTING);
+    glEnable(GL_COLOR_MATERIAL);
 
   glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, front_mat_shininess);
   glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  front_mat_specular);

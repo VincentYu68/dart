@@ -48,6 +48,7 @@
 #include "dart/dynamics/FEMBodyNode.h"
 #include "dart/dynamics/FEMSkeleton.h"
 #include "dart/dynamics/FEMPoint.h"
+#include "dart/simulation/FemWorld.h"
 
 #define FORCE_ON_RIGIDBODY 500.0;
 #define FORCE_ON_VERTEX 1.00;
@@ -133,24 +134,30 @@ void MyWindow::keyboard(unsigned char key, int x, int y)
     case 'm':
       mShowMeshs = !mShowMeshs;
       break;
-    case 'q':  // upper right force
-      mForceOnRigidBody[0] = -FORCE_ON_RIGIDBODY;
-      break;
-    case 'w':  // upper right force
-      mForceOnRigidBody[0] = FORCE_ON_RIGIDBODY;
-      break;
-    case 'e':  // upper right force
-      mForceOnRigidBody[1] = -FORCE_ON_RIGIDBODY;
-      break;
-    case 'r':  // upper right force
-      mForceOnRigidBody[1] = FORCE_ON_RIGIDBODY;
-      break;
-    case 't':  // upper right force
-      mForceOnRigidBody[2] = -FORCE_ON_RIGIDBODY;
-      break;
-    case 'y':  // upper right force
-      mForceOnRigidBody[2] = FORCE_ON_RIGIDBODY;
-      break;
+    
+    case 'A':
+          ((dart::simulation::FEMWorld*)mWorld)->_femSims[0]->stretch(Eigen::Vector3d(0, 0, -1));
+          break;
+    case 'D':
+          ((dart::simulation::FEMWorld*)mWorld)->_femSims[0]->stretch(Eigen::Vector3d(0, 0, 1));
+          break;
+      case 'W':
+          ((dart::simulation::FEMWorld*)mWorld)->_femSims[0]->stretch(Eigen::Vector3d(0, 1, 0));
+          break;
+      case 'S':
+          ((dart::simulation::FEMWorld*)mWorld)->_femSims[0]->stretch(Eigen::Vector3d(0, -1, 0.0));
+          break;
+          
+    case 'Q':
+          ((dart::simulation::FEMWorld*)mWorld)->_femSims[0]->rotate(-6);
+          break;
+    case 'E':
+          ((dart::simulation::FEMWorld*)mWorld)->_femSims[0]->rotate(6);
+          break;
+    case 'F':
+          ((dart::simulation::FEMWorld*)mWorld)->_femSims[0]->free();
+          break;
+          
     default:
       Win3D::keyboard(key, x, y);
   }

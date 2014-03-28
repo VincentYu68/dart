@@ -106,7 +106,7 @@ bool FEMPoint::isColliding()
     
 void FEMPoint::addExtForce(const Eigen::Vector3d& _force, bool _isForceLocal)
 {
-    if (immobile) return;
+    //if (immobile) return;
     
     mFext += _force;
     
@@ -174,7 +174,7 @@ void FEMPoint::init()
 
 void FEMPoint::update_ddq()
 {
-    if (immobile) return;
+    // if (immobile) return;
     
     //std::cout << mFext/mMass << "\n\n";
   // ddq = imp_psi*(alpha - m*(dw(parent) x mX + dv(parent))
