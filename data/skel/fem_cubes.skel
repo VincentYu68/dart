@@ -46,9 +46,9 @@
                 <fem_shape>
                     <total_mass>0.5</total_mass>
                     <geometry>
-			<box>
-                            <size>0.4 0.2 0.4</size>
-                        </box>
+			<volume_mesh>
+                            <filename>volmesh/beam3_tet.veg</filename>
+                        </volume_mesh>
                     </geometry>
 		<ym>400</ym>
 		<pr>0.45</pr>
